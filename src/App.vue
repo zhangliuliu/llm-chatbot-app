@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import { Button } from "@/components/ui/button";
+import { onMounted } from 'vue'
+import { useChatStore } from '@/stores/chat'
+
+const store = useChatStore()
+
+onMounted(() => {
+  store.init()
+})
 </script>
 
 <template>
-  <div>
-    <Button>Click me</Button>
-  </div>
+  <router-view />
 </template>
 
 <style scoped></style>
