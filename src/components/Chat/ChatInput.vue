@@ -50,7 +50,7 @@ function handleKeydown(e: KeyboardEvent) {
 </script>
 
 <template>
-    <div class="w-full p-4 bg-background border-t">
+    <div class="w-full p-4 bg-background">
         <div class="max-w-3xl mx-auto w-full relative">
             <div
                 class="flex items-end gap-2 bg-muted/50 border border-input rounded-xl p-2 focus-within:ring-1 focus-within:ring-ring transition-all shadow-sm">
