@@ -23,6 +23,41 @@ const thinkingContent = ref('')
 const hasThinking = ref(false)
 const isThinkingOpen = ref(false)
 
+const handleCopy = async (e: MouseEvent) => {
+    const target = (e.target as HTMLElement).closest('.copy-btn') as HTMLButtonElement
+    if (!target) return
+
+    const codeBlock = target.closest('.code-block')
+    if (!codeBlock) return
+
+    const codeElement = codeBlock.querySelector('code')
+    if (!codeElement) return
+
+    const code = codeElement.innerText
+    
+    try {
+        await navigator.clipboard.writeText(code)
+        
+        const label = target.querySelector('span:last-child')
+        const icon = target.querySelector('svg')
+        
+        if (label) {
+            const originalText = label.textContent
+            label.textContent = 'Copied!'
+            target.classList.add('text-green-500')
+            if (icon) icon.style.display = 'none'
+            
+            setTimeout(() => {
+                label.textContent = originalText
+                target.classList.remove('text-green-500')
+                if (icon) icon.style.display = ''
+            }, 2000)
+        }
+    } catch (err) {
+        console.error('Failed to copy logic', err)
+    }
+}
+
 // Throttled update to avoid main thread blocking on large info
 const updateContent = useThrottleFn((content: string) => {
     // Check for <think> block
@@ -57,6 +92,7 @@ watch(() => props.message.content, (newVal) => {
 
         <!-- Message Bubble -->
         <Card class="overflow-hidden"
+            @click="handleCopy"
             :class="message.role === 'user' ? 'bg-primary text-primary-foreground border-none rounded-2xl px-4 py-3 shadow-sm max-w-[85%]' : 'bg-transparent border-none shadow-none w-full min-w-0'">
             <!-- Thinking Block -->
             <div v-if="hasThinking" class="mb-2 border-l-2 border-primary/30 pl-4">
