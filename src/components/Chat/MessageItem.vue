@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useThrottleFn } from '@vueuse/core'
+import { Bot, User, ChevronRight } from 'lucide-vue-next'
 import { useMarkdown } from '@/composables/useMarkdown'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Card } from '@/components/ui/card'
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible'
 import type { Message } from '@/lib/db'
 
 const props = defineProps<{
@@ -13,6 +21,7 @@ const { render } = useMarkdown()
 const renderedContent = ref('')
 const thinkingContent = ref('')
 const hasThinking = ref(false)
+const isThinkingOpen = ref(false)
 
 // Throttled update to avoid main thread blocking on large info
 const updateContent = useThrottleFn((content: string) => {
@@ -39,41 +48,44 @@ watch(() => props.message.content, (newVal) => {
 <template>
     <div class="flex gap-4" :class="message.role === 'user' ? 'justify-end' : 'justify-start'">
         <!-- Avatar (Assistant) -->
-        <div v-if="message.role === 'assistant'"
-            class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-1">
-            <svg viewBox="0 0 24 24" fill="none" class="w-5 h-5 text-primary">
-                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"
-                    fill="currentColor" />
-                <path
-                    d="M12 6a1 1 0 0 0-1 1v2a1 1 0 0 0 2 0V7a1 1 0 0 0-1-1zm0 8a1 1 0 0 0-1 1v2a1 1 0 0 0 2 0v-2a1 1 0 0 0-1-1z"
-                    fill="currentColor" />
-            </svg>
-        </div>
+        <Avatar v-if="message.role === 'assistant'" class="h-8 w-8 mt-1">
+            <AvatarImage src="" alt="AI" />
+            <AvatarFallback class="bg-primary/10 text-primary">
+                <Bot class="w-5 h-5" />
+            </AvatarFallback>
+        </Avatar>
 
         <!-- Message Bubble -->
-        <div class="message-content rounded-2xl px-4 py-3 max-w-[85%] overflow-hidden"
-            :class="message.role === 'user' ? 'bg-muted text-foreground' : 'text-foreground w-full'">
+        <Card class="overflow-hidden"
+            :class="message.role === 'user' ? 'bg-primary text-primary-foreground border-none rounded-2xl px-4 py-3 shadow-sm max-w-[85%]' : 'bg-transparent border-none shadow-none w-full min-w-0'">
             <!-- Thinking Block -->
-            <div v-if="hasThinking" class="mb-4 border-l-2 border-primary/30 pl-4">
-                <details class="text-sm text-muted-foreground group cursor-pointer">
-                    <summary
-                        class="list-none flex items-center gap-2 hover:text-foreground transition-colors font-medium select-none">
-                        <span class="opacity-70 group-open:hidden">Show Thinking Process...</span>
-                        <span class="opacity-70 hidden group-open:inline">Thinking Process</span>
-                    </summary>
-                    <div class="mt-2 text-muted-foreground/80 markdown-body text-xs" v-html="thinkingContent"></div>
-                </details>
+            <div v-if="hasThinking" class="mb-2 border-l-2 border-primary/30 pl-4">
+                <Collapsible v-model:open="isThinkingOpen">
+                    <CollapsibleTrigger
+                        class="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors font-medium select-none group">
+                        <ChevronRight class="w-4 h-4 transition-transform duration-200"
+                            :class="{ 'rotate-90': isThinkingOpen }" />
+                        <span class="opacity-70 group-hover:opacity-100">Thinking Process</span>
+                    </CollapsibleTrigger>
+                    <!-- Force text color for thinking content in user bubble? No, thinking usually only for AI -->
+                    <CollapsibleContent>
+                        <div class="mt-2 text-muted-foreground/80 markdown-body text-xs" v-html="thinkingContent"></div>
+                    </CollapsibleContent>
+                </Collapsible>
             </div>
 
             <!-- Main Content -->
-            <div v-html="renderedContent" class="markdown-body text-sm md:text-base leading-relaxed break-words"></div>
-        </div>
+            <div v-html="renderedContent" class="markdown-body text-sm md:text-base leading-relaxed break-words"
+                :class="{ 'text-primary-foreground': message.role === 'user' }"></div>
+        </Card>
 
         <!-- Avatar (User) -->
-        <div v-if="message.role === 'user'"
-            class="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0 mt-1">
-            U
-        </div>
+        <Avatar v-if="message.role === 'user'" class="h-8 w-8 mt-1">
+            <AvatarImage src="" alt="User" />
+            <AvatarFallback class="bg-muted text-muted-foreground">
+                <User class="w-5 h-5" />
+            </AvatarFallback>
+        </Avatar>
     </div>
 </template>
 
@@ -81,6 +93,11 @@ watch(() => props.message.content, (newVal) => {
 /* Markdown Styles Scoped via deeply selection or global css */
 .markdown-body p {
     margin-bottom: 0.75em;
+}
+
+/* Remove margin from the last element to fix bubble spacing */
+.markdown-body>*:last-child {
+    margin-bottom: 0;
 }
 
 .markdown-body ul,
@@ -114,6 +131,12 @@ watch(() => props.message.content, (newVal) => {
 .markdown-body pre code {
     background-color: transparent;
     padding: 0;
+    color: inherit;
+}
+
+/* User Bubble Specific Overrides */
+.bg-primary .markdown-body code {
+    background-color: rgba(255, 255, 255, 0.2);
     color: inherit;
 }
 </style>

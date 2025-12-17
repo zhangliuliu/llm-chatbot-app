@@ -1,6 +1,14 @@
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, type ComponentPublicInstance } from 'vue'
 import { Send, Square } from 'lucide-vue-next'
+import { Textarea } from '@/components/ui/textarea'
+import { Button } from '@/components/ui/button'
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip'
 
 const props = defineProps<{
     isLoading: boolean
@@ -12,10 +20,10 @@ const emit = defineEmits<{
 }>()
 
 const input = ref('')
-const textareaRef = ref<HTMLTextAreaElement | null>(null)
+const textareaRef = ref<ComponentPublicInstance | null>(null)
 
 function adjustHeight() {
-    const el = textareaRef.value
+    const el = textareaRef.value?.$el as HTMLTextAreaElement | undefined
     if (el) {
         el.style.height = 'auto'
         el.style.height = Math.min(el.scrollHeight, 200) + 'px'
@@ -46,20 +54,30 @@ function handleKeydown(e: KeyboardEvent) {
         <div class="max-w-3xl mx-auto w-full relative">
             <div
                 class="flex items-end gap-2 bg-muted/50 border border-input rounded-xl p-2 focus-within:ring-1 focus-within:ring-ring transition-all shadow-sm">
-                <textarea ref="textareaRef" v-model="input" @input="handleInput" @keydown="handleKeydown"
+                <Textarea ref="textareaRef" v-model="input" @input="handleInput" @keydown="handleKeydown"
                     placeholder="Message LLM..."
-                    class="flex-1 bg-transparent border-0 focus:ring-0 resize-none max-h-48 min-h-[24px] py-2 px-2 outline-none text-base"
-                    rows="1"></textarea>
+                    class="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none resize-none max-h-48 min-h-[24px] py-2 px-2 outline-none text-base"
+                    rows="1" />
 
-                <button v-if="isLoading" @click="$emit('stop')"
-                    class="p-2 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors mb-0.5"
-                    title="Stop generating">
-                    <Square class="w-4 h-4 fill-current" />
-                </button>
-                <button v-else @click="handleSend" :disabled="!input.trim()"
-                    class="p-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors mb-0.5 disabled:opacity-50 disabled:cursor-not-allowed">
-                    <Send class="w-4 h-4" />
-                </button>
+                <TooltipProvider>
+                    <Tooltip :delay-duration="0">
+                        <TooltipTrigger as-child>
+                            <div class="mb-0.5 shrink-0">
+                                <Button v-if="isLoading" @click="$emit('stop')" variant="destructive" size="icon"
+                                    class="h-8 w-8 rounded-lg">
+                                    <Square class="w-4 h-4 fill-current" />
+                                </Button>
+                                <Button v-else @click="handleSend" :disabled="!input.trim()" size="icon"
+                                    class="h-8 w-8 rounded-lg transition-all">
+                                    <Send class="w-4 h-4" />
+                                </Button>
+                            </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>{{ isLoading ? 'Stop generating' : 'Send message' }}</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
             </div>
             <div class="text-center text-xs text-muted-foreground mt-2">
                 Ai can make mistakes. Please verify important information.
