@@ -10,12 +10,22 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
+    "@vueuse/core": "^14.1.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dayjs": "^1.11.19",
+    "dompurify": "^3.3.1",
+    "highlight.js": "^11.11.1",
+    "katex": "^0.16.27",
     "lucide-vue-next": "^0.561.0",
+    "markdown-it": "^14.1.0",
+    "markdown-it-highlightjs": "^4.2.0",
+    "markdown-it-katex": "^2.0.3",
+    "pinia": "^3.0.4",
     "reka-ui": "^2.6.1",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.18",
+    "uuid": "^13.0.0",
     "vue": "^3.5.24"
   },
   "devDependencies": {
