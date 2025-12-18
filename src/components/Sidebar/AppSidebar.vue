@@ -193,13 +193,13 @@ function cancelRename(e: Event) {
                             <template v-if="editingSessionId !== session.id">
                                 <SidebarMenuAction showOnHover @click="(e: Event) => startRename(session, e)"
                                     title="Rename"
-                                    class="right-7 h-7 w-7 opacity-0 group-hover/menu-item:opacity-100 transition-opacity">
+                                    class="right-7 h-7 w-7 opacity-0 group-hover/menu-item:opacity-100 transition-opacity text-muted-foreground/60 hover:text-foreground">
                                     <Edit2 class="h-3.5 w-3.5" />
                                 </SidebarMenuAction>
                                 <SidebarMenuAction showOnHover @click="(e: Event) => handleDeleteSession(session.id, e)"
                                     title="Delete"
-                                    class="right-1 h-7 w-7 opacity-0 group-hover/menu-item:opacity-100 transition-opacity">
-                                    <Trash2 class="h-3.5 w-3.5 text-muted-foreground/60 hover:text-destructive" />
+                                    class="right-1 h-7 w-7 opacity-0 group-hover/menu-item:opacity-100 transition-opacity text-muted-foreground/60 hover:text-destructive">
+                                    <Trash2 class="h-3.5 w-3.5" />
                                 </SidebarMenuAction>
                             </template>
                             <template v-else>
