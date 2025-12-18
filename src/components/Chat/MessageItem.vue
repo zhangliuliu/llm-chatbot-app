@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useThrottleFn } from '@vueuse/core'
-import { Bot, User, ChevronRight } from 'lucide-vue-next'
+import { User, ChevronRight } from 'lucide-vue-next'
 import { useMarkdown } from '@/composables/useMarkdown'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Card } from '@/components/ui/card'
@@ -34,19 +34,19 @@ const handleCopy = async (e: MouseEvent) => {
     if (!codeElement) return
 
     const code = codeElement.innerText
-    
+
     try {
         await navigator.clipboard.writeText(code)
-        
+
         const label = target.querySelector('span:last-child')
         const icon = target.querySelector('svg')
-        
+
         if (label) {
             const originalText = label.textContent
             label.textContent = 'Copied!'
             target.classList.add('text-green-500')
             if (icon) icon.style.display = 'none'
-            
+
             setTimeout(() => {
                 label.textContent = originalText
                 target.classList.remove('text-green-500')
@@ -82,17 +82,9 @@ watch(() => props.message.content, (newVal) => {
 
 <template>
     <div class="flex gap-4" :class="message.role === 'user' ? 'justify-end' : 'justify-start'">
-        <!-- Avatar (Assistant) -->
-        <Avatar v-if="message.role === 'assistant'" class="h-8 w-8 mt-1">
-            <AvatarImage src="" alt="AI" />
-            <AvatarFallback class="bg-primary/10 text-primary">
-                <Bot class="w-5 h-5" />
-            </AvatarFallback>
-        </Avatar>
 
         <!-- Message Bubble -->
-        <Card class="overflow-hidden"
-            @click="handleCopy"
+        <Card class="overflow-hidden" @click="handleCopy"
             :class="message.role === 'user' ? 'bg-primary text-primary-foreground border-none rounded-2xl px-4 py-3 shadow-sm max-w-[85%]' : 'bg-transparent border-none shadow-none w-full min-w-0'">
             <!-- Thinking Block -->
             <div v-if="hasThinking" class="mb-2 border-l-2 border-primary/30 pl-4">
@@ -116,9 +108,11 @@ watch(() => props.message.content, (newVal) => {
         </Card>
 
         <!-- Avatar (User) -->
-        <Avatar v-if="message.role === 'user'" class="h-8 w-8 mt-1">
-            <AvatarImage src="" alt="User" />
-            <AvatarFallback class="bg-muted text-muted-foreground">
+        <Avatar v-if="message.role === 'user'" class="h-9 w-9 mt-0.5 border-2 border-background shadow-sm shrink-0">
+            <AvatarImage
+                src="https://api.dicebear.com/7.x/notionists/svg?seed=User&backgroundColor=b6e3f4,c0aede,d1d4f9"
+                alt="User" />
+            <AvatarFallback class="bg-gradient-to-br from-indigo-500 to-purple-500 text-white">
                 <User class="w-5 h-5" />
             </AvatarFallback>
         </Avatar>

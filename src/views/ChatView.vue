@@ -190,18 +190,15 @@ function handleScrollToBottom() {
 <template>
   <div class="flex h-full flex-col items-center relative">
     <!-- Messages Area -->
-    <div
-      ref="messagesContainerRef"
-      class="flex-1 w-full overflow-y-auto p-4 md:p-10 scroll-smooth"
-    >
+    <div ref="messagesContainerRef" class="flex-1 w-full overflow-y-auto p-4 md:p-10 scroll-smooth">
       <div class="max-w-3xl mx-auto space-y-6">
         <!-- Introduction / Empty State -->
-        <div
-          v-if="messages.length === 0"
-          class="flex flex-col items-center justify-center h-full text-center space-y-4 mt-20"
-        >
-          <h1 class="text-4xl font-semibold">LLM Chatbot</h1>
-          <p class="text-muted-foreground text-lg">How can I help you today?</p>
+        <div v-if="messages.length === 0"
+          class="flex flex-col items-center justify-center h-full text-center space-y-4 mt-20">
+          <h1
+            class="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
+            Hello, I'm Moss</h1>
+          <p class="text-muted-foreground text-lg">有什么我可以帮您的吗？</p>
         </div>
 
         <!-- Message List -->
@@ -212,22 +209,14 @@ function handleScrollToBottom() {
     </div>
 
     <!-- Scroll to Bottom Button Container -->
-    <div class="absolute bottom-40 w-full px-4 pointer-events-none">
+    <div class="absolute bottom-[200px] w-full px-4 pointer-events-none z-20">
       <div class="max-w-3xl mx-auto relative">
-        <Transition
-          enter-active-class="transition-all duration-300 ease-out"
-          enter-from-class="opacity-0 scale-95"
-          enter-to-class="opacity-100 scale-100"
-          leave-active-class="transition-all duration-200 ease-in"
-          leave-from-class="opacity-100 scale-100"
-          leave-to-class="opacity-0 scale-95"
-        >
-          <button
-            v-if="showScrollButton"
-            @click="handleScrollToBottom"
+        <Transition enter-active-class="transition-all duration-300 ease-out" enter-from-class="opacity-0 scale-95"
+          enter-to-class="opacity-100 scale-100" leave-active-class="transition-all duration-200 ease-in"
+          leave-from-class="opacity-100 scale-100" leave-to-class="opacity-0 scale-95">
+          <button v-if="showScrollButton" @click="handleScrollToBottom"
             class="absolute right-0 top-0 p-3 bg-background border border-border rounded-full shadow-lg hover:shadow-xl transition-shadow duration-200 hover:scale-105 active:scale-95 pointer-events-auto"
-            aria-label="Scroll to bottom"
-          >
+            aria-label="Scroll to bottom">
             <ArrowDown :size="20" class="text-foreground" />
           </button>
         </Transition>
