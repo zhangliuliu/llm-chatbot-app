@@ -105,7 +105,12 @@ watch(
   () => messages.value[messages.value.length - 1]?.content,
   () => {
     if (!userScrolled.value) {
-      scrollToBottom();
+      nextTick(() => {
+        // Double RAF to ensure it happens after MessageItem's throttled update
+        requestAnimationFrame(() => {
+          scrollToBottom();
+        });
+      });
     }
   }
 );

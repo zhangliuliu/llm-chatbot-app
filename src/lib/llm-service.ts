@@ -68,7 +68,6 @@ export async function* mockStreamResponse(messages: { role: string, content: str
 
     // Select response based on prompt or random
     let responseText = ''
-    console.error('Prompt:', prompt)
     if (prompt.includes('长文本') || prompt.length > 100) {
         responseText = MOCK_RESPONSES.ULTRA_LONG
     } else {
@@ -76,14 +75,26 @@ export async function* mockStreamResponse(messages: { role: string, content: str
     }
 
     const fullResponse = `Here is a simulated response for: "${prompt}"\n\n${responseText}\n\n--- \n*Generated at ${new Date().toLocaleString()}*`
-    
-    const chunkSize = 15 // Increased chunk size for better feel
-    for (let i = 0; i < fullResponse.length; i += chunkSize) {
-        await delay(15) // Typing effect
+
+    // Simulate realistic typing speed (~30-50 chars/sec)
+    let i = 0
+    while (i < fullResponse.length) {
+        // Deliberate typing speed for a classic LLM feel
+        const remaining = fullResponse.length - i
+        const chunkSize = Math.min(Math.floor(Math.random() * 3) + 2, remaining)
+        const chunk = fullResponse.slice(i, i + chunkSize)
+        
+        // Steady pacing (30-60ms) with natural breathing room
+        const isPause = Math.random() > 0.98
+        const delayMs = isPause ? (Math.random() * 250 + 150) : (Math.random() * 30 + 30)
+        
+        await delay(delayMs)
+        
         yield {
-            content: fullResponse.slice(i, i + chunkSize),
+            content: chunk,
             done: false
         }
+        i += chunkSize
     }
     
     yield { content: '', done: true }

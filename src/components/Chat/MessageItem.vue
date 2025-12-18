@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useThrottleFn } from '@vueuse/core'
 import { User, Copy, RotateCcw, Check } from 'lucide-vue-next'
-import { useClipboard } from '@vueuse/core'
+import { useClipboard, useThrottleFn } from '@vueuse/core'
 import { useMarkdown } from '@/composables/useMarkdown'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -90,29 +89,29 @@ const handleCopy = async (e: MouseEvent) => {
     }
 }
 
-// Update content logic for AI messages
+// Level 2: Use throttled rendering for better performance balance
+// 80ms is roughly 12.5fps, which feels smooth for text while saving significant CPU
+const throttledUpdate = useThrottleFn((content: string) => {
+    renderedContent.value = render(content)
+}, 80)
+
 const updateRenderedContent = (content: string) => {
     if (!content) {
         renderedContent.value = ''
         return
     }
-    console.log(content)
-    // Remove ALL thinking blocks and only render the main response
-    // const rest = content.replace(/<think>[\s\S]*?(?:<\/think>|$)/g, '')
-    renderedContent.value = render(content)
+    throttledUpdate(content)
 }
 
-const throttledUpdate = useThrottleFn(updateRenderedContent, 100)
-
-// Watch both content and streaming status to ensure final content is rendered correctly
+// Watch both content and streaming status
 watch(
     [() => props.message.content, () => store.isStreaming],
     ([content, isStreaming]) => {
         if (isStreaming && props.message.role === 'assistant') {
-            throttledUpdate(content || '')
-        } else {
-            // If not streaming (or just finished), perform an immediate update to ensure no content is lost
             updateRenderedContent(content || '')
+        } else {
+            // When not streaming or just finished, perform an immediate final update
+            renderedContent.value = content ? render(content) : ''
         }
     },
     { immediate: true }
@@ -138,8 +137,10 @@ watch(
                         v-if="!message.content && store.isStreaming && store.messages[store.messages.length - 1]?.id === message.id"
                         class="py-3" />
                     <div v-else v-html="renderedContent"
-                        class="markdown-body text-sm md:text-base leading-7 md:leading-8 text-left break-words"
-                        :class="{ 'is-streaming': store.isStreaming && store.messages[store.messages.length - 1]?.id === message.id }">
+                        class="markdown-body text-sm md:text-base leading-7 md:leading-8 text-left break-words" :class="{
+                            'is-streaming': store.isStreaming && store.messages[store.messages.length - 1]?.id === message.id,
+                            'is-complete': !(store.isStreaming && store.messages[store.messages.length - 1]?.id === message.id)
+                        }">
                     </div>
                 </div>
             </Card>
@@ -199,6 +200,12 @@ watch(
 /* Markdown Styles Scoped via deeply selection or global css */
 .markdown-body {
     line-height: 1.75;
+}
+
+/* Only apply render optimization to completed messages to avoid jitter during streaming */
+.markdown-body.is-complete {
+    content-visibility: auto;
+    contain-intrinsic-size: 1px 100px;
 }
 
 .markdown-body p {
@@ -262,13 +269,15 @@ watch(
 
 /* Cursor effect for streaming */
 .markdown-body.is-streaming>*:last-child::after {
-    content: '●';
+    content: '';
     display: inline-block;
-    font-size: 0.8em;
-    color: var(--primary, currentColor);
-    margin-left: 0.25em;
+    width: 0.5em;
+    height: 1em;
+    background-color: var(--primary, currentColor);
+    margin-left: 0.15em;
     vertical-align: middle;
     animation: blink 0.8s step-end infinite;
+    line-height: 1;
 }
 
 @keyframes blink {
