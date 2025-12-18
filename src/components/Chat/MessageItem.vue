@@ -89,20 +89,32 @@ const handleCopy = async (e: MouseEvent) => {
 }
 
 // Update content logic for AI messages
-const updateContent = useThrottleFn((content: string) => {
+const updateRenderedContent = (content: string) => {
     if (!content) {
         renderedContent.value = ''
         return
     }
-
+    console.log(content)
     // Remove ALL thinking blocks and only render the main response
-    const rest = content.replace(/<think>[\s\S]*?(?:<\/think>|$)/g, '')
-    renderedContent.value = render(rest)
-}, 100)
+    // const rest = content.replace(/<think>[\s\S]*?(?:<\/think>|$)/g, '')
+    renderedContent.value = render(content)
+}
 
-watch(() => props.message.content, (newVal) => {
-    updateContent(newVal || '')
-}, { immediate: true })
+const throttledUpdate = useThrottleFn(updateRenderedContent, 100)
+
+// Watch both content and streaming status to ensure final content is rendered correctly
+watch(
+    [() => props.message.content, () => store.isStreaming],
+    ([content, isStreaming]) => {
+        if (isStreaming && props.message.role === 'assistant') {
+            throttledUpdate(content || '')
+        } else {
+            // If not streaming (or just finished), perform an immediate update to ensure no content is lost
+            updateRenderedContent(content || '')
+        }
+    },
+    { immediate: true }
+)
 </script>
 
 <template>
