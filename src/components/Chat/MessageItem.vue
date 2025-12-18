@@ -121,8 +121,8 @@ watch(
 <template>
     <div class="flex gap-4 group" :class="message.role === 'user' ? 'justify-end' : 'justify-start'">
         <!-- Message Bubble -->
-        <div class="flex flex-col gap-1 max-w-[85%]"
-            :class="message.role === 'user' ? 'items-end' : 'items-start flex-1 min-w-0'">
+        <div class="flex flex-col gap-1"
+            :class="message.role === 'user' ? 'items-end max-w-[85%]' : 'items-start flex-1 min-w-0 max-w-full'">
             <Card class="overflow-hidden w-fit" @click="handleCopy"
                 :class="message.role === 'user' ? 'bg-secondary text-secondary-foreground border-none rounded-2xl px-4 py-3 shadow-none' : 'bg-transparent border-none shadow-none w-full min-w-0'">
 
