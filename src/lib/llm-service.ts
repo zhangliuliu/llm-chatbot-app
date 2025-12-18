@@ -37,7 +37,7 @@ export async function* getChatResponse(messages: { role: string, content: string
 async function* openaiStreamResponse(messages: { role: string, content: string }[], options?: { signal?: AbortSignal }): AsyncGenerator<StreamChunk> {
     try {
         const stream = await openai.chat.completions.create({
-            model: import.meta.env.VITE_OPENAI_MODEL || 'gpt-3.5-turbo',
+            model: import.meta.env.VITE_OPENAI_MODEL || 'gpt-4.1-nano',
             messages: messages as any,
             stream: true,
         }, { signal: options?.signal })
@@ -62,7 +62,7 @@ export async function* mockStreamResponse(messages: { role: string, content: str
     const prompt = messages[messages.length - 1]?.content || ''
     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
     
-    await delay(500) // Initial latency
+    await delay(2500) // Initial latency
 
     const englishResponse = `Here is a comprehensive simulated response for: "${prompt}"
 
@@ -233,7 +233,7 @@ $$
     
     const chunkSize = 5
     for (let i = 0; i < response.length; i += chunkSize) {
-        await delay(10) // Typing effect
+        await delay(20) // Typing effect
         yield {
             content: response.slice(i, i + chunkSize),
             done: false

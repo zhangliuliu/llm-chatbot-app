@@ -22,6 +22,8 @@ import { Trash2 } from 'lucide-vue-next'
 import { useChatStore } from '@/stores/chat'
 import type { Message } from '@/lib/db'
 
+import TypingIndicator from './TypingIndicator.vue'
+
 const props = defineProps<{
     message: Message
 }>()
@@ -131,12 +133,20 @@ watch(
                     class="whitespace-pre-wrap text-sm md:text-base leading-7 md:leading-8 text-left break-words">
                     {{ message.content }}
                 </div>
-                <div v-else v-html="renderedContent"
-                    class="markdown-body text-sm md:text-base leading-7 md:leading-8 text-left break-words"></div>
+                <div v-else class="relative">
+                    <TypingIndicator
+                        v-if="!message.content && store.isStreaming && store.messages[store.messages.length - 1]?.id === message.id"
+                        class="py-3" />
+                    <div v-else v-html="renderedContent"
+                        class="markdown-body text-sm md:text-base leading-7 md:leading-8 text-left break-words"
+                        :class="{ 'is-streaming': store.isStreaming && store.messages[store.messages.length - 1]?.id === message.id }">
+                    </div>
+                </div>
             </Card>
 
             <!-- Actions -->
-            <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                :class="{ 'pointer-events-none !opacity-0': store.isStreaming && store.messages[store.messages.length - 1]?.id === message.id }">
                 <Button variant="ghost" size="icon" class="h-8 w-11 text-muted-foreground hover:text-foreground"
                     title="Copy" @click="handleCopyMessage">
                     <Check v-if="copied" class="h-4 w-4 text-green-500" />
@@ -198,6 +208,29 @@ watch(
 /* Remove margin from the last element to fix bubble spacing */
 .markdown-body>*:last-child {
     margin-bottom: 0 !important;
+}
+
+/* Cursor effect for streaming */
+.markdown-body.is-streaming>*:last-child::after {
+    content: '●';
+    display: inline-block;
+    font-size: 0.8em;
+    color: var(--primary, currentColor);
+    margin-left: 0.25em;
+    vertical-align: middle;
+    animation: blink 0.8s step-end infinite;
+}
+
+@keyframes blink {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0;
+    }
 }
 
 .markdown-body ul,
