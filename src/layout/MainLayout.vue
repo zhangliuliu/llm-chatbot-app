@@ -1,24 +1,20 @@
 <script setup lang="ts">
 import AppSidebar from '@/components/Sidebar/AppSidebar.vue'
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 </script>
 
 <template>
-  <div class="flex h-screen w-full overflow-hidden bg-background text-foreground">
-    <!-- Desktop Sidebar -->
-    <aside class="hidden md:flex w-[260px] flex-col overflow-hidden">
+  <SidebarProvider>
+    <div class="flex h-screen w-full overflow-hidden bg-background text-foreground">
+      <!-- Shadcn Sidebar -->
       <AppSidebar />
-    </aside>
 
-    <!-- Main Content -->
-    <main class="flex flex-1 flex-col h-full overflow-hidden relative">
-        <!-- Mobile Header (TODO: Add Sheet Trigger) -->
-        <!-- <header class="flex h-14 items-center gap-4 border-b bg-background px-6 md:hidden"> -->
-            <!-- Menu button here -->
-        <!-- </header> -->
-
+      <!-- Main Content Area -->
+      <SidebarInset class="flex flex-col h-full overflow-hidden relative">
         <div class="flex-1 overflow-hidden relative flex flex-col">
-            <router-view />
+          <router-view />
         </div>
-    </main>
-  </div>
+      </SidebarInset>
+    </div>
+  </SidebarProvider>
 </template>

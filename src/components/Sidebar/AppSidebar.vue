@@ -1,9 +1,24 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
-import { Plus, MessageSquare, Trash2, Edit2, Check, X } from 'lucide-vue-next'
+import { Plus, MessageSquare, Trash2, Edit2, Check, X, User } from 'lucide-vue-next'
 import { useChatStore } from '@/stores/chat'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
+import {
+    Sidebar,
+    SidebarContent,
+    SidebarHeader,
+    SidebarFooter,
+    SidebarMenu,
+    SidebarMenuItem,
+    SidebarMenuButton,
+    SidebarMenuAction,
+    SidebarGroup,
+    SidebarGroupContent,
+    SidebarGroupLabel,
+} from '@/components/ui/sidebar'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 const store = useChatStore()
 const { sessions, currentSessionId } = storeToRefs(store)
@@ -11,7 +26,7 @@ const router = useRouter()
 
 const editingSessionId = ref<string | null>(null)
 const editTitle = ref('')
-const editInputRef = ref<HTMLInputElement | null>(null)
+const editInputRef = ref<InstanceType<typeof Input> | null>(null)
 
 function handleNewChat() {
     store.createNewSession()
@@ -35,7 +50,8 @@ function startRename(session: any, e: Event) {
     editingSessionId.value = session.id
     editTitle.value = session.title
     nextTick(() => {
-        editInputRef.value?.focus()
+        const inputEl = editInputRef.value?.$el as HTMLInputElement | undefined
+        inputEl?.focus()
     })
 }
 
@@ -55,65 +71,79 @@ function cancelRename(e: Event) {
 </script>
 
 <template>
-    <div class="flex h-full flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
+    <Sidebar collapsible="icon" variant="sidebar">
         <!-- Header: New Chat -->
-        <div class="p-4">
-            <button @click="handleNewChat"
-                class="flex w-full items-center gap-2 rounded-md border border-sidebar-border bg-sidebar px-4 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors">
+        <SidebarHeader class="p-4">
+            <Button @click="handleNewChat" variant="outline" class="w-full justify-start gap-2 h-10 px-4">
                 <Plus class="h-4 w-4" />
-                New Chat
-            </button>
-        </div>
+                <span class="group-data-[collapsible=icon]:hidden">New Chat</span>
+            </Button>
+        </SidebarHeader>
 
         <!-- Session List -->
-        <div class="flex-1 overflow-y-auto px-2">
-            <div v-for="session in sessions" :key="session.id" @click="handleSelectSession(session.id)" :class="[
-                'group flex items-center gap-2 rounded-md px-2 py-2 text-sm cursor-pointer transition-colors min-h-[40px]',
-                currentSessionId === session.id
-                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                    : 'text-muted-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-            ]">
-                <MessageSquare class="h-4 w-4 shrink-0" />
+        <SidebarContent>
+            <SidebarGroup>
+                <SidebarGroupLabel>Recent Chats</SidebarGroupLabel>
+                <SidebarGroupContent>
+                    <SidebarMenu>
+                        <SidebarMenuItem v-for="session in sessions" :key="session.id">
+                            <SidebarMenuButton :isActive="currentSessionId === session.id"
+                                @click="handleSelectSession(session.id)" :tooltip="session.title">
+                                <MessageSquare class="h-4 w-4 shrink-0" />
 
-                <!-- View Mode -->
-                <template v-if="editingSessionId !== session.id">
-                    <span class="truncate flex-1">{{ session.title }}</span>
-                    <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <!-- Rename -->
-                        <button @click="(e) => startRename(session, e)" class="hover:text-primary transition-colors p-1"
-                            title="Rename">
-                            <Edit2 class="h-3.5 w-3.5" />
-                        </button>
-                        <!-- Delete -->
-                        <button @click="(e) => handleDeleteSession(session.id, e)"
-                            class="hover:text-destructive transition-colors p-1" title="Delete">
-                            <Trash2 class="h-3.5 w-3.5" />
-                        </button>
-                    </div>
-                </template>
+                                <!-- View Mode -->
+                                <template v-if="editingSessionId !== session.id">
+                                    <span class="truncate flex-1">{{ session.title }}</span>
+                                </template>
 
-                <!-- Edit Mode -->
-                <template v-else>
-                    <input ref="editInputRef" v-model="editTitle" @click.stop @keydown.enter="confirmRename"
-                        @keydown.esc="cancelRename"
-                        class="flex-1 bg-transparent border border-input rounded px-1 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring" />
-                    <button @click="confirmRename" class="text-green-500 p-1">
-                        <Check class="h-3.5 w-3.5" />
-                    </button>
-                    <button @click="cancelRename" class="text-destructive p-1">
-                        <X class="h-3.5 w-3.5" />
-                    </button>
-                </template>
+                                <!-- Edit Mode -->
+                                <template v-else>
+                                    <Input ref="editInputRef" v-model="editTitle" @click.stop
+                                        @keydown.enter="confirmRename" @keydown.esc="cancelRename"
+                                        class="h-7 px-1 text-xs focus-visible:ring-1" />
+                                </template>
+                            </SidebarMenuButton>
 
-            </div>
-        </div>
+                            <!-- Actions -->
+                            <template v-if="editingSessionId !== session.id">
+                                <SidebarMenuAction showOnHover @click="(e: Event) => startRename(session, e)"
+                                    title="Rename" class="right-8">
+                                    <Edit2 class="h-3.5 w-3.5" />
+                                </SidebarMenuAction>
+                                <SidebarMenuAction showOnHover @click="(e: Event) => handleDeleteSession(session.id, e)"
+                                    title="Delete">
+                                    <Trash2 class="h-3.5 w-3.5 hover:text-destructive" />
+                                </SidebarMenuAction>
+                            </template>
+                            <template v-else>
+                                <SidebarMenuAction @click="confirmRename" class="right-8 text-green-500">
+                                    <Check class="h-3.5 w-3.5" />
+                                </SidebarMenuAction>
+                                <SidebarMenuAction @click="cancelRename" class="text-destructive">
+                                    <X class="h-3.5 w-3.5" />
+                                </SidebarMenuAction>
+                            </template>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
+                </SidebarGroupContent>
+            </SidebarGroup>
+        </SidebarContent>
 
-        <!-- Footer: User Profile (Placeholder) -->
-        <div class="p-4 border-t border-sidebar-border">
-            <div class="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <div class="h-8 w-8 bg-muted rounded-full flex items-center justify-center">U</div>
-                User
-            </div>
-        </div>
-    </div>
+        <!-- Footer: User Profile -->
+        <SidebarFooter class="p-4 border-t border-sidebar-border">
+            <SidebarMenu>
+                <SidebarMenuItem>
+                    <SidebarMenuButton size="lg" class="w-full justify-start gap-3">
+                        <div class="h-8 w-8 bg-muted rounded-full flex items-center justify-center shrink-0">
+                            <User class="h-4 w-4" />
+                        </div>
+                        <div class="flex flex-col items-start leading-tight group-data-[collapsible=icon]:hidden">
+                            <span class="font-medium">User</span>
+                            <span class="text-xs text-muted-foreground">Free Plan</span>
+                        </div>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+            </SidebarMenu>
+        </SidebarFooter>
+    </Sidebar>
 </template>

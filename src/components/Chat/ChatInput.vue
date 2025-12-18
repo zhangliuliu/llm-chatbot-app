@@ -50,13 +50,13 @@ function handleKeydown(e: KeyboardEvent) {
 </script>
 
 <template>
-    <div class="w-full p-4 bg-background">
+    <div class="w-full px-4 pb-4 bg-background">
         <div class="max-w-3xl mx-auto w-full relative">
             <div
-                class="flex items-end gap-2 bg-muted/50 border border-input rounded-xl p-2 focus-within:ring-1 focus-within:ring-ring transition-all shadow-sm">
+                class="flex items-end gap-2 bg-muted/30 border-input border rounded-xl p-2 focus-within:ring-1 focus-within:ring-ring transition-all shadow-sm">
                 <Textarea ref="textareaRef" v-model="input" @input="handleInput" @keydown="handleKeydown"
                     placeholder="Message LLM..."
-                    class="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none resize-none max-h-48 min-h-[24px] py-2 px-2 outline-none text-base"
+                    class="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none resize-none min-h-[40px] py-2 px-2 outline-none text-base"
                     rows="1" />
 
                 <TooltipProvider>
@@ -73,13 +73,13 @@ function handleKeydown(e: KeyboardEvent) {
                                 </Button>
                             </div>
                         </TooltipTrigger>
-                        <TooltipContent>
+                        <TooltipContent side="top">
                             <p>{{ isLoading ? 'Stop generating' : 'Send message' }}</p>
                         </TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
             </div>
-            <div class="text-center text-xs text-muted-foreground mt-2">
+            <div class="text-center text-[10px] md:text-xs text-muted-foreground mt-2">
                 Ai can make mistakes. Please verify important information.
             </div>
         </div>
