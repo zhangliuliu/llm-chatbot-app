@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { chatDB, type Session, type Message } from '@/lib/db'
-import { mockStreamResponse, generateId } from '@/lib/llm-service'
+import { getChatResponse, generateId } from '@/lib/llm-service'
 import router from '@/router'
 
 export const useChatStore = defineStore('chat', () => {
@@ -98,15 +98,20 @@ export const useChatStore = defineStore('chat', () => {
                await chatDB.updateSession(JSON.parse(JSON.stringify(session)))
             }
             
+            // Prepare history for API (exclude the last empty assistant message)
+            const history = messages.value.slice(0, -1).map(m => ({
+                role: m.role,
+                content: m.content
+            }))
+
             // Start Stream
-            for await (const chunk of mockStreamResponse(content)) {
-                if (abortController.signal.aborted) break
+            for await (const chunk of getChatResponse(history, { signal: abortController.signal })) {
+                if (abortController?.signal.aborted) break
                 
                 if (chunk.done) break
                 
                 // Update in memory
                 reactiveAssistantMsg.content += chunk.content
-                // We might throttle DB updates here for performance in real app
             }
             
             // Save final message to DB

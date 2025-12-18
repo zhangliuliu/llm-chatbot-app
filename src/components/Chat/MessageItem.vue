@@ -99,8 +99,9 @@ watch(() => props.message.content, (newVal) => {
 <template>
     <div class="flex gap-4 group" :class="message.role === 'user' ? 'justify-end' : 'justify-start'">
         <!-- Message Bubble -->
-        <div class="flex flex-col gap-1 min-w-0" :class="message.role === 'user' ? 'items-end' : 'items-start flex-1'">
-            <Card class="overflow-hidden w-fit max-w-[90%]" @click="handleCopy"
+        <div class="flex flex-col gap-1 max-w-[85%]"
+            :class="message.role === 'user' ? 'items-end' : 'items-start flex-1 min-w-0'">
+            <Card class="overflow-hidden w-fit" @click="handleCopy"
                 :class="message.role === 'user' ? 'bg-secondary text-secondary-foreground border-none rounded-2xl px-4 py-3 shadow-none' : 'bg-transparent border-none shadow-none w-full min-w-0'">
                 <!-- Thinking Block -->
                 <div v-if="hasThinking" class="mb-2 border-l-2 border-primary/30 pl-4">
@@ -129,7 +130,7 @@ watch(() => props.message.content, (newVal) => {
 
             <!-- Actions -->
             <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground hover:text-foreground"
+                <Button variant="ghost" size="icon" class="h-8 w-11 text-muted-foreground hover:text-foreground"
                     title="Copy" @click="handleCopyMessage">
                     <Check v-if="copied" class="h-4 w-4 text-green-500" />
                     <Copy v-else class="h-4 w-4" />
@@ -249,13 +250,16 @@ watch(() => props.message.content, (newVal) => {
 }
 
 /* User Bubble Specific Overrides */
-.bg-primary {
-    min-width: max-content;
+.bg-secondary {
+    min-width: 44px;
+    /* Ensure small messages like emoji or 1-2 chars look good */
+    display: flex;
+    flex-direction: column;
 }
 
 @media (max-width: 768px) {
-    .bg-primary {
-        min-width: 0;
+    .bg-secondary {
+        min-width: 32px;
     }
 }
 </style>
