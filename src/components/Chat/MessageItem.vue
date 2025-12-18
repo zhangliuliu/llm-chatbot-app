@@ -1,17 +1,13 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useThrottleFn } from '@vueuse/core'
-import { User, ChevronRight, Copy, RotateCcw, Check } from 'lucide-vue-next'
+import { User, Copy, RotateCcw, Check } from 'lucide-vue-next'
 import { useClipboard } from '@vueuse/core'
 import { useMarkdown } from '@/composables/useMarkdown'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from '@/components/ui/collapsible'
+
 import {
     AlertDialog,
     AlertDialogAction,
@@ -56,9 +52,6 @@ const handleDeleteMessage = () => {
 }
 
 const renderedContent = ref('')
-const thinkingContent = ref('')
-const hasThinking = ref(false)
-const isThinkingOpen = ref(false)
 
 const handleCopy = async (e: MouseEvent) => {
     const target = (e.target as HTMLElement).closest('.copy-btn') as HTMLButtonElement
@@ -95,23 +88,17 @@ const handleCopy = async (e: MouseEvent) => {
     }
 }
 
-// Throttled update to avoid main thread blocking on large info
+// Update content logic for AI messages
 const updateContent = useThrottleFn((content: string) => {
-    const trimmed = content.trim()
-    // Check for <think> block
-    const thinkMatch = trimmed.match(/<think>([\s\S]*?)(?:<\/think>|$)/)
-
-    if (thinkMatch) {
-        hasThinking.value = true
-        thinkingContent.value = render(thinkMatch[1] || '')
-        // Render the rest of the content (after </think>)
-        const rest = trimmed.replace(/<think>[\s\S]*?(?:<\/think>|$)/, '')
-        renderedContent.value = render(rest)
-    } else {
-        hasThinking.value = false
-        renderedContent.value = render(trimmed)
+    if (!content) {
+        renderedContent.value = ''
+        return
     }
-}, 100) // 100ms throttle
+
+    // Remove ALL thinking blocks and only render the main response
+    const rest = content.replace(/<think>[\s\S]*?(?:<\/think>|$)/g, '')
+    renderedContent.value = render(rest)
+}, 100)
 
 watch(() => props.message.content, (newVal) => {
     updateContent(newVal || '')
@@ -125,21 +112,7 @@ watch(() => props.message.content, (newVal) => {
             :class="message.role === 'user' ? 'items-end' : 'items-start flex-1 min-w-0'">
             <Card class="overflow-hidden w-fit" @click="handleCopy"
                 :class="message.role === 'user' ? 'bg-secondary text-secondary-foreground border-none rounded-2xl px-4 py-3 shadow-none' : 'bg-transparent border-none shadow-none w-full min-w-0'">
-                <!-- Thinking Block -->
-                <div v-if="hasThinking" class="mb-2 border-l-2 border-primary/30 pl-4">
-                    <Collapsible v-model:open="isThinkingOpen">
-                        <CollapsibleTrigger
-                            class="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors font-medium select-none group">
-                            <ChevronRight class="w-4 h-4 transition-transform duration-200"
-                                :class="{ 'rotate-90': isThinkingOpen }" />
-                            <span class="opacity-70 group-hover:opacity-100">Thinking Process</span>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                            <div class="mt-2 text-muted-foreground/80 markdown-body text-xs" v-html="thinkingContent">
-                            </div>
-                        </CollapsibleContent>
-                    </Collapsible>
-                </div>
+
 
                 <!-- Main Content -->
                 <div v-if="message.role === 'user'"
