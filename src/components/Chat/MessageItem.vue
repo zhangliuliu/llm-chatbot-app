@@ -12,6 +12,18 @@ import {
     CollapsibleContent,
     CollapsibleTrigger,
 } from '@/components/ui/collapsible'
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Trash2 } from 'lucide-vue-next'
+import { useChatStore } from '@/stores/chat'
 import type { Message } from '@/lib/db'
 
 const props = defineProps<{
@@ -24,6 +36,9 @@ const emit = defineEmits<{
 
 const { render } = useMarkdown()
 const { copy, copied } = useClipboard()
+const store = useChatStore()
+
+const isDeleteDialogOpen = ref(false)
 
 const handleCopyMessage = () => {
     copy(props.message.content || '')
@@ -31,6 +46,13 @@ const handleCopyMessage = () => {
 
 const handleRegenerate = () => {
     emit('regenerate', props.message)
+}
+
+const handleDeleteMessage = () => {
+    if (props.message.id) {
+        store.deleteMessage(props.message.id)
+    }
+    isDeleteDialogOpen.value = false
 }
 
 const renderedContent = ref('')
@@ -139,6 +161,11 @@ watch(() => props.message.content, (newVal) => {
                     class="h-8 w-8 text-muted-foreground hover:text-foreground" title="Retry" @click="handleRegenerate">
                     <RotateCcw class="h-4 w-4" />
                 </Button>
+                <Button variant="ghost" size="icon"
+                    class="h-8 w-8 text-muted-foreground hover:text-destructive transition-colors"
+                    title="Delete Message" @click="isDeleteDialogOpen = true">
+                    <Trash2 class="h-4 w-4" />
+                </Button>
             </div>
         </div>
 
@@ -152,6 +179,25 @@ watch(() => props.message.content, (newVal) => {
             </AvatarFallback>
         </Avatar>
     </div>
+
+    <!-- Delete Confirmation Dialog -->
+    <AlertDialog v-model:open="isDeleteDialogOpen">
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>确认删除这条消息？</AlertDialogTitle>
+                <AlertDialogDescription>
+                    此操作无法撤销。该消息将从您的对话历史中永久移除。
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>取消</AlertDialogCancel>
+                <AlertDialogAction @click="handleDeleteMessage"
+                    class="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    确认删除
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
 </template>
 
 <style>

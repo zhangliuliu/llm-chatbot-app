@@ -202,7 +202,7 @@ function handleScrollToBottom() {
         </div>
 
         <!-- Message List -->
-        <div v-for="msg in messages" :key="msg.id">
+        <div v-for="msg in store.messages" :key="msg.id">
           <MessageItem :message="msg" />
         </div>
       </div>

@@ -147,6 +147,11 @@ export const useChatStore = defineStore('chat', () => {
         }
     }
 
+    async function deleteMessage(id: string) {
+        messages.value = messages.value.filter(m => m.id !== id)
+        await chatDB.deleteMessage(id)
+    }
+
     return {
         sessions,
         currentSessionId,
@@ -159,6 +164,7 @@ export const useChatStore = defineStore('chat', () => {
         deleteSession,
         updateSessionTitle,
         sendMessage,
-        stopGeneration
+        stopGeneration,
+        deleteMessage
     }
 })

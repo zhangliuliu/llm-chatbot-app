@@ -76,5 +76,12 @@ export const chatDB = {
       }
       
       await tx.done
+  },
+
+  async deleteMessage(messageId: string) {
+    const db = await dbPromise
+    const tx = db.transaction('messages', 'readwrite')
+    await tx.objectStore('messages').delete(messageId)
+    await tx.done
   }
 }

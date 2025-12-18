@@ -41,6 +41,16 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 const store = useChatStore()
 const { sessions, currentSessionId } = storeToRefs(store)
@@ -50,6 +60,9 @@ const { } = useSidebar()
 const editingSessionId = ref<string | null>(null)
 const editTitle = ref('')
 const editInputRef = ref<InstanceType<typeof Input> | null>(null)
+
+const isDeleteDialogOpen = ref(false)
+const sessionToDelete = ref<string | null>(null)
 
 function handleNewChat() {
     store.createNewSession()
@@ -61,10 +74,17 @@ function handleSelectSession(id: string) {
     router.push(`/c/${id}`)
 }
 
-async function handleDeleteSession(id: string, e: Event) {
+function handleDeleteSession(id: string, e: Event) {
     e.stopPropagation()
-    if (confirm('Are you sure you want to delete this chat?')) {
-        await store.deleteSession(id)
+    sessionToDelete.value = id
+    isDeleteDialogOpen.value = true
+}
+
+async function confirmDelete() {
+    if (sessionToDelete.value) {
+        await store.deleteSession(sessionToDelete.value)
+        sessionToDelete.value = null
+        isDeleteDialogOpen.value = false
     }
 }
 
@@ -252,4 +272,23 @@ function cancelRename(e: Event) {
             </SidebarMenu>
         </SidebarFooter>
     </Sidebar>
+
+    <!-- Delete Confirmation Dialog -->
+    <AlertDialog v-model:open="isDeleteDialogOpen">
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>确认删除对话？</AlertDialogTitle>
+                <AlertDialogDescription>
+                    此操作无法撤销。该对话及其所有消息将被永久删除。
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel @click="sessionToDelete = null">取消</AlertDialogCancel>
+                <AlertDialogAction @click="confirmDelete"
+                    class="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    确认删除
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
 </template>
