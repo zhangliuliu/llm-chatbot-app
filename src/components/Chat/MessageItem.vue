@@ -205,6 +205,56 @@ watch(
     margin-bottom: 1.25em;
 }
 
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+    color: var(--foreground);
+    font-weight: 600;
+    line-height: 1.3;
+    margin-top: 1.25rem;
+    margin-bottom: 0.75rem;
+}
+
+.markdown-body h1 {
+    font-size: 1.875rem;
+}
+
+.markdown-body h2 {
+    font-size: 1.5rem;
+}
+
+.markdown-body h3 {
+    font-size: 1.25rem;
+}
+
+.markdown-body h4 {
+    font-size: 1.125rem;
+}
+
+.markdown-body h5 {
+    font-size: 1rem;
+}
+
+.markdown-body h6 {
+    font-size: 0.875rem;
+    color: var(--muted-foreground);
+}
+
+.markdown-body hr {
+    margin: 1.5rem 0;
+    border: 0;
+    border-top: 1px solid var(--border);
+    opacity: 0.6;
+}
+
+/* Remove margin from the first element */
+.markdown-body>*:first-child {
+    margin-top: 0 !important;
+}
+
 /* Remove margin from the last element to fix bubble spacing */
 .markdown-body>*:last-child {
     margin-bottom: 0 !important;
@@ -275,9 +325,9 @@ watch(
 
 .markdown-body blockquote {
     padding-left: 1em;
-    border-left: 4px solid var(--muted);
+    border-left: 4px solid var(--border);
     color: var(--muted-foreground);
-    margin-bottom: 1.25em;
+    margin: 1.5em 0;
     font-style: italic;
 }
 
