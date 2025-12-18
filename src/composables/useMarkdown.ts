@@ -54,11 +54,17 @@ export function useMarkdown() {
 
   function render(content: string) {
     if (!content) return ''
-    const rawHtml = md.render(content)
-    return DOMPurify.sanitize(rawHtml, {
-      ADD_TAGS: ['button', 'svg', 'path', 'use'],
-      ADD_ATTR: ['xmlns', 'fill', 'viewBox', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'd']
-    })
+    try {
+      const rawHtml = md.render(content)
+      return DOMPurify.sanitize(rawHtml, {
+        ADD_TAGS: ['button', 'svg', 'path', 'use'],
+        ADD_ATTR: ['xmlns', 'fill', 'viewBox', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'd']
+      })
+    } catch (err) {
+      console.error('Markdown render error:', err)
+      // Return a safer version if rendering fails during streaming
+      return DOMPurify.sanitize(content)
+    }
   }
 
   return {
