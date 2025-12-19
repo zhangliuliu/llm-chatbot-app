@@ -64,6 +64,11 @@ const editInputRef = ref<InstanceType<typeof Input> | null>(null)
 const isDeleteDialogOpen = ref(false)
 const sessionToDelete = ref<string | null>(null)
 
+function handleGoHome(e: Event) {
+    e.stopPropagation()
+    router.push('/')
+}
+
 function handleNewChat() {
     store.createNewSession()
 }
@@ -121,7 +126,8 @@ function cancelRename(e: Event) {
                 <!-- Expanded: Logo(L) + Trigger(R) -->
                 <div class="flex items-center gap-2 group-data-[collapsible=icon]:hidden w-full px-1">
                     <div
-                        class="flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background shrink-0">
+                        class="flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background shrink-0 cursor-pointer"
+                        @click="handleGoHome">
                         <Sparkles class="h-4 w-4" />
                     </div>
                     <SidebarTrigger class="ml-auto h-8 w-8 hover:bg-muted" />
@@ -133,7 +139,8 @@ function cancelRename(e: Event) {
                     <div
                         class="absolute inset-0 flex items-center justify-center transition-opacity duration-300 group-hover/header:opacity-0 group-hover/header:pointer-events-none">
                         <div
-                            class="flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background shrink-0">
+                            class="flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background shrink-0 cursor-pointer"
+                            @click="handleGoHome">
                             <Sparkles class="h-4 w-4" />
                         </div>
                     </div>
