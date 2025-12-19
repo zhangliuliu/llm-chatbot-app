@@ -16,6 +16,76 @@ const showScrollButton = ref(false);
 let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
 const isAutoScrolling = ref(false);
 
+const isSessionVisible = ref(true);
+
+const isSwitchingSession = ref(false);
+let switchingTimeout: ReturnType<typeof setTimeout> | null = null;
+
+let pinTimeout: ReturnType<typeof setTimeout> | null = null;
+let pinResizeObserver: ResizeObserver | null = null;
+let pinOnLoadHandler: ((e: Event) => void) | null = null;
+
+let scheduledScrollRaf: number | null = null;
+let scheduledScrollSmooth = false;
+
+function scheduleScrollToBottom(smooth = false) {
+  scheduledScrollSmooth = scheduledScrollSmooth || smooth;
+  if (scheduledScrollRaf !== null) return;
+  scheduledScrollRaf = requestAnimationFrame(() => {
+    scheduledScrollRaf = null;
+    const smoothToUse = scheduledScrollSmooth;
+    scheduledScrollSmooth = false;
+    scrollToBottom(smoothToUse);
+  });
+}
+
+function stopPinToBottom() {
+  if (pinTimeout) {
+    clearTimeout(pinTimeout);
+    pinTimeout = null;
+  }
+  if (pinResizeObserver) {
+    pinResizeObserver.disconnect();
+    pinResizeObserver = null;
+  }
+  if (pinOnLoadHandler && messagesContainerRef.value) {
+    messagesContainerRef.value.removeEventListener("load", pinOnLoadHandler, true);
+    pinOnLoadHandler = null;
+  }
+}
+
+function pinToBottomFor(durationMs = 1200) {
+  stopPinToBottom();
+  const el = messagesContainerRef.value;
+  if (!el) return;
+
+  pinOnLoadHandler = () => {
+    if (!userScrolled.value) scheduleScrollToBottom();
+  };
+  el.addEventListener("load", pinOnLoadHandler, true);
+
+  if (typeof ResizeObserver !== "undefined") {
+    pinResizeObserver = new ResizeObserver(() => {
+      if (!userScrolled.value) scheduleScrollToBottom();
+    });
+    pinResizeObserver.observe(el);
+  }
+
+  pinTimeout = setTimeout(() => {
+    stopPinToBottom();
+  }, durationMs);
+}
+
+async function scrollToBottomAfterRender(smooth = false) {
+  await nextTick();
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve());
+    });
+  });
+  scheduleScrollToBottom(smooth);
+}
+
 // Check if user is at bottom
 function checkIfAtBottom() {
   if (!messagesContainerRef.value) return true;
@@ -48,7 +118,7 @@ function scrollToBottom(smooth = false) {
 // Detect user scroll intent immediately (wheel or touch)
 function handleUserScrollIntent() {
   // User is trying to scroll, mark it immediately
-  if (!isAutoScrolling.value) {
+  if (!isAutoScrolling.value && !isSwitchingSession.value) {
     userScrolled.value = true;
   }
 }
@@ -56,7 +126,7 @@ function handleUserScrollIntent() {
 // Handle scroll event - update button visibility
 function handleScroll() {
   // Ignore scroll events caused by auto-scrolling
-  if (isAutoScrolling.value) {
+  if (isAutoScrolling.value || isSwitchingSession.value) {
     return;
   }
 
@@ -93,7 +163,7 @@ watch(
   () => {
     nextTick(() => {
       if (!userScrolled.value) {
-        scrollToBottom();
+        scheduleScrollToBottom();
       }
     });
   },
@@ -108,7 +178,7 @@ watch(
       nextTick(() => {
         // Double RAF to ensure it happens after MessageItem's throttled update
         requestAnimationFrame(() => {
-          scrollToBottom();
+          scheduleScrollToBottom();
         });
       });
     }
@@ -119,6 +189,17 @@ watch(
 watch(
   () => route.params.id,
   async (newId) => {
+    isSessionVisible.value = false;
+    userScrolled.value = false;
+    showScrollButton.value = false;
+    stopPinToBottom();
+
+    isSwitchingSession.value = true;
+    if (switchingTimeout) {
+      clearTimeout(switchingTimeout);
+      switchingTimeout = null;
+    }
+
     if (newId && typeof newId === "string") {
       // Avoid re-loading the same session when navigation is triggered by the store
       // (e.g. createNewSession -> router.push), otherwise it can overwrite in-memory
@@ -131,11 +212,18 @@ watch(
       store.$patch({ currentSessionId: null, messages: [] });
     }
     // Always scroll to bottom when loading a new session
-    nextTick(() => {
-      scrollToBottom();
-      userScrolled.value = false;
-      showScrollButton.value = false;
+    await scrollToBottomAfterRender();
+    pinToBottomFor();
+
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => resolve());
     });
+    isSessionVisible.value = true;
+
+    switchingTimeout = setTimeout(() => {
+      isSwitchingSession.value = false;
+      switchingTimeout = null;
+    }, 250);
   },
   { immediate: true }
 );
@@ -160,6 +248,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  stopPinToBottom();
   if (messagesContainerRef.value) {
     messagesContainerRef.value.removeEventListener("scroll", handleScroll);
     messagesContainerRef.value.removeEventListener(
@@ -174,13 +263,17 @@ onUnmounted(() => {
   if (scrollTimeout) {
     clearTimeout(scrollTimeout);
   }
+  if (switchingTimeout) {
+    clearTimeout(switchingTimeout);
+    switchingTimeout = null;
+  }
 });
 
 function handleSend(content: string) {
   store.sendMessage(content);
   // Scroll to bottom when sending a message
   nextTick(() => {
-    scrollToBottom();
+    scheduleScrollToBottom();
     userScrolled.value = false;
     showScrollButton.value = false;
   });
@@ -191,7 +284,7 @@ function handleStop() {
 }
 
 function handleScrollToBottom() {
-  scrollToBottom(true);
+  scrollToBottom(false);
   userScrolled.value = false;
   showScrollButton.value = false;
 }
@@ -200,10 +293,10 @@ function handleScrollToBottom() {
 <template>
   <div class="flex h-full flex-col items-center relative">
     <!-- Messages Area -->
-    <div ref="messagesContainerRef" class="flex-1 w-full overflow-y-auto p-4 md:p-10 scroll-smooth">
+    <div ref="messagesContainerRef" class="flex-1 w-full overflow-y-auto p-4 md:p-10" :style="isSessionVisible ? 'overflow-anchor: none;' : 'overflow-anchor: none; visibility: hidden;'">
       <div class="max-w-3xl mx-auto space-y-6">
         <!-- Introduction / Empty State -->
-        <div v-if="messages.length === 0"
+        <div v-if="messages.length === 0 && !isSwitchingSession"
           class="flex flex-col items-center justify-center h-full text-center space-y-4 mt-20">
           <h1
             class="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">

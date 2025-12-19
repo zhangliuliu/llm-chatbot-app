@@ -75,7 +75,6 @@ function handleNewChat() {
 
 function handleSelectSession(id: string) {
     if (editingSessionId.value === id) return
-    store.loadSession(id)
     router.push(`/c/${id}`)
 }
 

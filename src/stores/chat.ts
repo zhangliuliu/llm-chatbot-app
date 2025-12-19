@@ -15,6 +15,8 @@ export const useChatStore = defineStore('chat', () => {
     const isStreaming = ref(false)
     let abortController: AbortController | null = null
 
+    let sessionLoadToken = 0
+
     // Getters
 
     // Actions
@@ -24,8 +26,13 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     async function loadSession(id: string) {
+        const token = ++sessionLoadToken
         currentSessionId.value = id
-        messages.value = await chatDB.getMessages(id)
+        messages.value = []
+
+        const loaded = await chatDB.getMessages(id)
+        if (token !== sessionLoadToken) return
+        messages.value = loaded
     }
 
     async function createNewSession() {
