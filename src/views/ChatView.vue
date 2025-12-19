@@ -120,7 +120,12 @@ watch(
   () => route.params.id,
   async (newId) => {
     if (newId && typeof newId === "string") {
-      await store.loadSession(newId);
+      // Avoid re-loading the same session when navigation is triggered by the store
+      // (e.g. createNewSession -> router.push), otherwise it can overwrite in-memory
+      // streaming messages.
+      if (store.currentSessionId !== newId) {
+        await store.loadSession(newId);
+      }
     } else {
       // New Chat view (no ID)
       store.$patch({ currentSessionId: null, messages: [] });

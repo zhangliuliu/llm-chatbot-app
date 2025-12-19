@@ -37,7 +37,7 @@ export const useChatStore = defineStore('chat', () => {
         await chatDB.createSession(newSession)
         sessions.value.unshift(newSession)
         await loadSession(newSession.id)
-        router.push(`/c/${newSession.id}`)
+        await router.push(`/c/${newSession.id}`)
         return newSession.id
     }
 
