@@ -293,7 +293,12 @@ function handleScrollToBottom() {
 <template>
   <div class="flex h-full flex-col items-center relative">
     <!-- Messages Area -->
-    <div ref="messagesContainerRef" class="flex-1 w-full overflow-y-auto p-4 md:p-10" :style="isSessionVisible ? 'overflow-anchor: none;' : 'overflow-anchor: none; visibility: hidden;'">
+    <div
+      ref="messagesContainerRef"
+      class="flex-1 w-full overflow-y-auto p-4 md:p-10 transition-opacity duration-150 ease-out"
+      style="overflow-anchor: none;"
+      :class="isSessionVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'"
+    >
       <div class="max-w-3xl mx-auto space-y-6">
         <!-- Introduction / Empty State -->
         <div v-if="messages.length === 0 && !isSwitchingSession"
