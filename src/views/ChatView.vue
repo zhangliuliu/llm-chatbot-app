@@ -319,11 +319,12 @@ function handleScrollToBottom() {
     <!-- Scroll to Bottom Button Container -->
     <div class="absolute bottom-[200px] w-full px-4 pointer-events-none z-20">
       <div class="max-w-3xl mx-auto relative">
-        <Transition enter-active-class="transition-all duration-300 ease-out" enter-from-class="opacity-0 scale-95"
-          enter-to-class="opacity-100 scale-100" leave-active-class="transition-all duration-200 ease-in"
-          leave-from-class="opacity-100 scale-100" leave-to-class="opacity-0 scale-95">
+        <Transition enter-active-class="transition duration-300 ease-out motion-reduce:transition-none"
+          enter-from-class="opacity-0 translate-y-4" enter-to-class="opacity-100 translate-y-0"
+          leave-active-class="transition duration-200 ease-in motion-reduce:transition-none"
+          leave-from-class="opacity-100 translate-y-0" leave-to-class="opacity-0 translate-y-4">
           <button v-if="showScrollButton" @click="handleScrollToBottom"
-            class="absolute right-0 top-0 p-3 bg-background border border-border rounded-full shadow-lg hover:shadow-xl transition-shadow duration-200 hover:scale-105 active:scale-95 pointer-events-auto"
+            class="absolute right-0 top-0 p-3 bg-background border border-border rounded-full shadow-lg hover:shadow-xl transition-shadow duration-200 hover:scale-105 active:scale-95 pointer-events-auto transform-gpu will-change-transform"
             aria-label="Scroll to bottom">
             <ArrowDown :size="20" class="text-foreground" />
           </button>
