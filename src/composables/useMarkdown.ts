@@ -1,7 +1,45 @@
-import MarkdownIt from 'markdown-it'
-import hljs from 'highlight.js'
-import markdownItKatex from 'markdown-it-katex'
-import DOMPurify from 'dompurify'
+import MarkdownIt from "markdown-it";
+// 1. 优化：引入核心库而非全量包
+import hljs from "highlight.js/lib/core";
+import markdownItHighlightjs from "markdown-it-highlightjs";
+// 这里根据需要引入你常用的语言
+import javascript from "highlight.js/lib/languages/javascript";
+import typescript from "highlight.js/lib/languages/typescript";
+import python from "highlight.js/lib/languages/python";
+import xml from "highlight.js/lib/languages/xml"; // 包含 html
+import markdown from "highlight.js/lib/languages/markdown";
+import css from "highlight.js/lib/languages/css";
+import scss from "highlight.js/lib/languages/scss";
+import json from "highlight.js/lib/languages/json";
+import bash from "highlight.js/lib/languages/bash";
+import shell from "highlight.js/lib/languages/shell";
+import java from "highlight.js/lib/languages/java";
+import go from "highlight.js/lib/languages/go";
+import c from "highlight.js/lib/languages/c";
+import cpp from "highlight.js/lib/languages/cpp";
+import sql from "highlight.js/lib/languages/sql";
+import rust from "highlight.js/lib/languages/rust";
+
+import markdownItKatex from "markdown-it-katex";
+import DOMPurify from "dompurify";
+
+// 注册语言
+hljs.registerLanguage("javascript", javascript);
+hljs.registerLanguage("typescript", typescript);
+hljs.registerLanguage("python", python);
+hljs.registerLanguage("html", xml);
+hljs.registerLanguage("markdown", markdown);
+hljs.registerLanguage("css", css);
+hljs.registerLanguage("scss", scss);
+hljs.registerLanguage("json", json);
+hljs.registerLanguage("bash", bash);
+hljs.registerLanguage("shell", shell);
+hljs.registerLanguage("java", java);
+hljs.registerLanguage("go", go);
+hljs.registerLanguage("c", c);
+hljs.registerLanguage("cpp", cpp);
+hljs.registerLanguage("sql", sql);
+hljs.registerLanguage("rust", rust);
 
 export function useMarkdown() {
   const md: MarkdownIt = new MarkdownIt({
@@ -10,36 +48,46 @@ export function useMarkdown() {
     breaks: true, // Convert '\n' in paragraphs to <br>
     linkify: true, // Autoconvert URL-like text to links
     typographer: true,
-    highlight: null // We handle highlighting in custom fence rule
-  })
+  });
 
   // Plugins
-  md.use(markdownItKatex)
+  // 2. 优化：使用插件并开启行内代码高亮
+  // 传入我们自定义注册过的 hljs 实例
+  md.use(markdownItHighlightjs, {
+    hljs,
+    inline: true, // 开启行内代码高亮支持
+    auto: true, // 自动检测语言
+  });
+  md.use(markdownItKatex);
 
-  // Custom renderer rules
-  md.renderer.rules.fence = (tokens, idx) => {
-    const token = tokens[idx]
-    if (!token) return ''
-
-    const info = token.info ? md.utils.unescapeAll(token.info).trim() : ''
-    let lang = ''
-    if (info) {
-      lang = info.split(/\s+/g)[0] || ''
+  // 3. 优化：保留自定义 UI，但利用 hljs 实例逻辑
+  md.renderer.rules.fence = (tokens, idx, options, env, slf) => {
+    const token = tokens[idx];
+    if (!token) {
+      return "";
     }
+    const info = token.info ? md.utils.unescapeAll(token.info).trim() : "";
+    const lang = info.split(/\s+/g)[0] || "";
 
-    let highlighted = ''
-    const language = lang || 'text'
+    // 获取高亮代码
+    let highlighted = "";
+    const language = lang || "text";
 
     if (lang && hljs.getLanguage(lang)) {
       try {
-        highlighted = hljs.highlight(token.content, { language: lang, ignoreIllegals: true }).value
-      } catch (__) { }
+        highlighted = hljs.highlight(token.content, {
+          language: lang,
+          ignoreIllegals: true,
+        }).value;
+      } catch (__) {
+        highlighted = md.utils.escapeHtml(token.content);
+      }
+    } else {
+      // 如果没指定语言或语言不支持，尝试自动检测或转义
+      highlighted = md.utils.escapeHtml(token.content);
     }
 
-    if (!highlighted) {
-      highlighted = md.utils.escapeHtml(token.content)
-    }
-
+    // 返回你自定义的漂亮 UI
     return `<div class="code-block my-2 rounded-lg overflow-hidden bg-[#282c34] border border-border/10 shadow-sm">
       <div class="flex items-center justify-between px-3 py-1.5 bg-[#21252b] border-b border-white/5">
         <span class="text-xs font-medium text-zinc-400 select-none font-mono lowercase">${language}</span>
@@ -48,26 +96,36 @@ export function useMarkdown() {
           <span>Copy</span>
         </button>
       </div>
-      <pre class="hljs !my-0 !p-3 !bg-transparent !rounded-none overflow-x-auto"><code class="language-${language} !font-mono text-sm !bg-transparent !p-0 !border-none">${highlighted}</code></pre>
-    </div>`
-  }
+      <pre class="hljs my-0! p-3! bg-transparent! rounded-none! overflow-x-auto"><code class="language-${language} !font-mono text-sm !bg-transparent !p-0 !border-none">${highlighted}</code></pre>
+    </div>`;
+  };
 
   function render(content: string) {
-    if (!content) return ''
+    if (!content) return "";
     try {
-      const rawHtml = md.render(content)
+      const rawHtml = md.render(content);
       return DOMPurify.sanitize(rawHtml, {
-        ADD_TAGS: ['button', 'svg', 'path', 'use'],
-        ADD_ATTR: ['xmlns', 'fill', 'viewBox', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'd']
-      })
+        // 确保允许你的自定义 UI 标签和属性
+        ADD_TAGS: ["button", "svg", "path", "use", "span"],
+        ADD_ATTR: [
+          "xmlns",
+          "fill",
+          "viewBox",
+          "stroke",
+          "stroke-width",
+          "stroke-linecap",
+          "stroke-linejoin",
+          "d",
+          "class",
+        ],
+      });
     } catch (err) {
-      console.error('Markdown render error:', err)
-      // Return a safer version if rendering fails during streaming
-      return DOMPurify.sanitize(content)
+      console.error("Markdown render error:", err);
+      return DOMPurify.sanitize(content);
     }
   }
 
   return {
-    render
-  }
+    render,
+  };
 }
