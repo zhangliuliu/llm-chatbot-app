@@ -71,7 +71,7 @@ export function useMarkdown() {
 
     // 获取高亮代码
     let highlighted = "";
-    const language = lang || "text";
+    let language = lang || "text";
 
     if (lang && hljs.getLanguage(lang)) {
       try {
@@ -83,8 +83,17 @@ export function useMarkdown() {
         highlighted = md.utils.escapeHtml(token.content);
       }
     } else {
-      // 如果没指定语言或语言不支持，尝试自动检测或转义
-      highlighted = md.utils.escapeHtml(token.content);
+      // 如果没指定语言或语言不支持，尝试自动检测
+      try {
+        const result = hljs.highlightAuto(token.content);
+        highlighted = result.value;
+        // Only update language display if user didn't specify one
+        if (result.language && !lang) {
+          language = result.language;
+        }
+      } catch (__) {
+        highlighted = md.utils.escapeHtml(token.content);
+      }
     }
 
     // 返回你自定义的漂亮 UI
