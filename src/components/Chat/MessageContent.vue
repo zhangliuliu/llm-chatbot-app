@@ -277,4 +277,19 @@ watch(
     min-width: 32px;
   }
 }
+
+/* Image styles */
+.markdown-body img {
+  max-width: 70%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 0.5rem 0;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.markdown-body p > img:only-child,
+.markdown-body p > a:only-child > img:only-child {
+  margin: 0;
+}
 </style>

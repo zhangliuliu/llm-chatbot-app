@@ -4,7 +4,7 @@
  */
 
 export const MOCK_RESPONSES = {
-    EN: `## Markdown Features Demo
+  EN: `## Markdown Features Demo
 
 ### 1. Typography & Styles
 We can support **bold text**, *italicized emphasis*, ~~strikethrough~~, and \`inline code snippets\`. 
@@ -73,11 +73,22 @@ $$
 **Quadratic Formula:**
 The solution is $x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$.
 
-### 6. Long Content Testing
+### 6. 图片渲染
+测试 Markdown 图片的渲染效果。
+
+![Vue Logo](https://vuejs.org/images/logo.png)
+
+![代码示例图](https://placehold.co/600x400/transparent/F00)
+
+带有描述文字的图片：
+![这是一个示例图片，展示 Markdown 图片渲染功能](https://placehold.co/600x400?text=Hello+World)
+
+
+### 7. Long Content Testing
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. 
 `,
 
-    CN: `## Markdown 功能完整演示
+  CN: `## Markdown 功能完整演示
 
 ### 1. 排版与样式 (Typography)
 我们支持 **加粗文本**、*斜体强调*、~~删除线~~ 以及 \`行内代码\` 的混合排版。
@@ -151,7 +162,16 @@ $$
 \\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}
 $$
 
-### 6. 长文本与古诗词
+### 6. 图片渲染
+测试 Markdown 图片的渲染效果。
+
+![Vue Logo](https://vuejs.org/images/logo.png)
+
+![代码示例图](https://placehold.co/600x400/transparent/F00)
+
+带有描述文字的图片：
+![这是一个示例图片，展示 Markdown 图片渲染功能](https://placehold.co/600x400?text=Hello+World)
+### 7. 长文本与古诗词
 **《将进酒》 - 李白**
 
 君不见黄河之水天上来，奔流到海不复回。
@@ -160,8 +180,8 @@ $$
 天生我材必有用，千金散尽还复来。
 `,
 
-    // Placeholder for your 10k+ character content
-    ULTRA_LONG: `# 制造业企业AI应用分析报告
+  // Placeholder for your 10k+ character content
+  ULTRA_LONG: `# 制造业企业AI应用分析报告
 
 ---
 
@@ -507,5 +527,5 @@ HR部门借助AI自动筛选归档、流程管理、数据分析、员工自助�
 （详见本报告各部门清单/如有新业务痛点可随时依托智能体平台持续增编。）
 
 ---
-`
+`,
 };

@@ -115,7 +115,7 @@ export function useMarkdown() {
       const rawHtml = md.render(content);
       return DOMPurify.sanitize(rawHtml, {
         // 确保允许你的自定义 UI 标签和属性
-        ADD_TAGS: ["button", "svg", "path", "use", "span"],
+        ADD_TAGS: ["button", "svg", "path", "use", "span", "img"],
         ADD_ATTR: [
           "xmlns",
           "fill",
@@ -126,6 +126,12 @@ export function useMarkdown() {
           "stroke-linejoin",
           "d",
           "class",
+          // Image attributes
+          "src",
+          "alt",
+          "width",
+          "height",
+          "loading",
         ],
       });
     } catch (err) {
