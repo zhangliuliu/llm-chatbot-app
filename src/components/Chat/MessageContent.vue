@@ -57,7 +57,7 @@ watch(
     <!-- Main Content -->
     <div
       v-if="message.role === 'user'"
-      class="whitespace-pre-wrap text-sm md:text-base leading-7 md:leading-8 text-left break-words"
+      class="whitespace-pre-wrap text-sm md:text-base leading-7 md:leading-8 text-left wrap-break-word"
     >
       {{ message.content }}
     </div>

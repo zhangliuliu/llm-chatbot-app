@@ -1,103 +1,116 @@
-import OpenAI from 'openai'
+import OpenAI from "openai";
 
 export interface StreamChunk {
-    content: string
-    done: boolean
+  content: string;
+  done: boolean;
 }
 
 export function generateId() {
-    return Math.random().toString(36).substring(2, 9)
+  return Math.random().toString(36).substring(2, 9);
 }
 
 // Configuration
-const API_KEY = import.meta.env.VITE_OPENAI_API_KEY
-const BASE_URL = import.meta.env.VITE_OPENAI_BASE_URL || 'https://api.openai.com/v1'
-const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true' || !API_KEY
+const API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+const BASE_URL =
+  import.meta.env.VITE_OPENAI_BASE_URL || "https://api.openai.com/v1";
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true" || !API_KEY;
 
 const openai = new OpenAI({
-    apiKey: API_KEY,
-    baseURL: BASE_URL,
-    dangerouslyAllowBrowser: true // Since this is a client-side demo
-})
+  apiKey: API_KEY,
+  baseURL: BASE_URL,
+  dangerouslyAllowBrowser: true, // Since this is a client-side demo
+});
 
 /**
  * Unified interface for chat responses
  */
-export async function* getChatResponse(messages: { role: string, content: string }[], options?: { signal?: AbortSignal }): AsyncGenerator<StreamChunk> {
-    if (USE_MOCK) {
-        yield* mockStreamResponse(messages)
-    } else {
-        yield* openaiStreamResponse(messages, options)
-    }
+export async function* getChatResponse(
+  messages: { role: string; content: string }[],
+  options?: { signal?: AbortSignal }
+): AsyncGenerator<StreamChunk> {
+  if (USE_MOCK) {
+    yield* mockStreamResponse(messages);
+  } else {
+    yield* openaiStreamResponse(messages, options);
+  }
 }
 
 /**
  * Real OpenAI Streaming Response
  */
-async function* openaiStreamResponse(messages: { role: string, content: string }[], options?: { signal?: AbortSignal }): AsyncGenerator<StreamChunk> {
-    try {
-        const stream = await openai.chat.completions.create({
-            model: import.meta.env.VITE_OPENAI_MODEL || 'gpt-4.1-nano',
-            messages: messages as any,
-            stream: true,
-        }, { signal: options?.signal })
+async function* openaiStreamResponse(
+  messages: { role: string; content: string }[],
+  options?: { signal?: AbortSignal }
+): AsyncGenerator<StreamChunk> {
+  try {
+    const stream = await openai.chat.completions.create(
+      {
+        model: import.meta.env.VITE_OPENAI_MODEL || "gpt-4.1-nano",
+        messages: messages as any,
+        stream: true,
+      },
+      { signal: options?.signal }
+    );
 
-        for await (const chunk of stream) {
-            const content = chunk.choices?.[0]?.delta?.content || ''
-            if (content) {
-                yield { content, done: false }
-            }
-        }
-        yield { content: '', done: true }
-    } catch (error) {
-        console.error('OpenAI Stream Error:', error)
-        throw error
+    for await (const chunk of stream) {
+      const content = chunk.choices?.[0]?.delta?.content || "";
+      if (content) {
+        yield { content, done: false };
+      }
     }
+    yield { content: "", done: true };
+  } catch (error) {
+    console.error("OpenAI Stream Error:", error);
+    throw error;
+  }
 }
 
-import { MOCK_RESPONSES } from './mock-data'
+import { MOCK_RESPONSES } from "./mock-data";
 
 /**
  * Simulates a streaming LLM response
  */
-export async function* mockStreamResponse(messages: { role: string, content: string }[]): AsyncGenerator<StreamChunk> {
-    const prompt = messages[messages.length - 1]?.content || ''
-    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-    
-    await delay(1500) // Initial latency
+export async function* mockStreamResponse(
+  messages: { role: string; content: string }[]
+): AsyncGenerator<StreamChunk> {
+  const prompt = messages[messages.length - 1]?.content || "";
+  const delay = (ms: number) =>
+    new Promise((resolve) => setTimeout(resolve, ms));
 
-    // Select response based on prompt or random
-    let responseText = ''
-    if (prompt.includes('长文本') || prompt.length > 100) {
-        responseText = MOCK_RESPONSES.ULTRA_LONG
-    } else {
-        responseText = Math.random() > 0.5 ? MOCK_RESPONSES.CN : MOCK_RESPONSES.EN
-    }
+  await delay(1500); // Initial latency
 
-    const fullResponse = `Here is a simulated response for: "${prompt}"\n\n${responseText}\n\n--- \n*Generated at ${new Date().toLocaleString()}*`
+  // Select response based on prompt or random
+  let responseText = "";
+  if (prompt.includes("长文本") || prompt.length > 100) {
+    responseText = MOCK_RESPONSES.ULTRA_LONG;
+  } else {
+    responseText = Math.random() > 0.5 ? MOCK_RESPONSES.CN : MOCK_RESPONSES.EN;
+  }
 
-    // Simulate realistic typing speed (~30-50 chars/sec)
-    let i = 0
-    while (i < fullResponse.length) {
-        // Deliberate typing speed for a classic LLM feel
-        const remaining = fullResponse.length - i
-        const chunkSize = Math.min(Math.floor(Math.random() * 3) + 2, remaining)
-        const chunk = fullResponse.slice(i, i + chunkSize)
-        
-        // Steady pacing (30-60ms) with natural breathing room
-        const isPause = Math.random() > 0.98
-        const delayMs = isPause ? (Math.random() * 250 + 150) : (Math.random() * 30 + 30)
-        
-        await delay(delayMs)
-        
-        yield {
-            content: chunk,
-            done: false
-        }
-        i += chunkSize
-    }
-    
-    yield { content: '', done: true }
+  const fullResponse = `Here is a simulated response for: "${prompt}"\n\n${responseText}\n\n--- \n*Generated at ${new Date().toLocaleString()}*`;
+
+  // Simulate realistic typing speed (~30-50 chars/sec)
+  let i = 0;
+  while (i < fullResponse.length) {
+    // Deliberate typing speed for a classic LLM feel
+    const remaining = fullResponse.length - i;
+    const chunkSize = Math.min(Math.floor(Math.random() * 3) + 2, remaining);
+    const chunk = fullResponse.slice(i, i + chunkSize);
+
+    // Steady pacing (30-60ms) with natural breathing room
+    const isPause = Math.random() > 0.98;
+    const delayMs = isPause
+      ? Math.random() * 250 + 150
+      : Math.random() * 30 + 30;
+
+    await delay(delayMs);
+
+    yield {
+      content: chunk,
+      done: false,
+    };
+    i += chunkSize;
+  }
+
+  yield { content: "", done: true };
 }
-
-
