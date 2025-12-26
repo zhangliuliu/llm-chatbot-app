@@ -83,6 +83,8 @@ export async function* mockStreamResponse(
   let responseText = "";
   if (prompt.includes("长文本") || prompt.length > 100) {
     responseText = MOCK_RESPONSES.ULTRA_LONG;
+  } else if (prompt.includes("mermaid")) {
+    responseText = MOCK_RESPONSES.MERMAID_DEMO;
   } else {
     responseText = Math.random() > 0.5 ? MOCK_RESPONSES.CN : MOCK_RESPONSES.EN;
   }

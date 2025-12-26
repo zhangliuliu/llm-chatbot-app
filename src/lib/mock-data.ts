@@ -4,6 +4,244 @@
  */
 
 export const MOCK_RESPONSES = {
+  // Mermaid chart demos - 专门展示各种类型的 Mermaid 图表
+  MERMAID_DEMO: `# Mermaid 图表完整展示
+
+以下是各种类型的 Mermaid 图表示例：
+
+## 1. 流程图 (Flowchart)
+展示流程和控制逻辑。
+
+\`\`\`mermaid
+graph LR
+    A[开始] --> B{判断条件}
+    B -->|条件为真| C[执行操作A]
+    B -->|条件为假| D[执行操作B]
+    C --> E[合并结果]
+    D --> E
+    E --> F[结束]
+    
+    style A fill:#e1f5e1,stroke:#333,stroke-width:2px
+    style F fill:#ffe1e1,stroke:#333,stroke-width:2px
+\`\`\`
+
+## 2. 时序图 (Sequence Diagram)
+展示对象之间的交互过程。
+
+\`\`\`mermaid
+sequenceDiagram
+    actor User as 用户
+    participant Web as 前端
+    participant API as 后端API
+    participant DB as 数据库
+    
+    User->>Web: 发起请求
+    Web->>API: 调用接口
+    API->>DB: 查询数据
+    DB-->>API: 返回数据
+    API-->>Web: 响应结果
+    Web-->>User: 展示页面
+    
+    Note over User,Web: 完整的请求-响应流程
+\`\`\`
+
+## 3. 甘特图 (Gantt Chart)
+展示项目进度和时间规划。
+
+\`\`\`mermaid
+gantt
+    title 软件开发项目计划
+    dateFormat  YYYY-MM-DD
+    section 需求阶段
+    需求分析       :a1, 2025-01-01, 7d
+    原型设计       :a2, after a1, 5d
+    
+    section 开发阶段
+    前端开发       :b1, 2025-01-13, 21d
+    后端开发       :b2, 2025-01-13, 21d
+    接口联调       :b3, after b1 b2, 5d
+    
+    section 测试阶段
+    单元测试       :c1, 2025-02-03, 7d
+    集成测试       :c2, after c1, 7d
+    验收测试       :c3, after c2, 5d
+\`\`\`
+
+## 4. 类图 (Class Diagram)
+展示类的结构和关系。
+
+\`\`\`mermaid
+classDiagram
+    class User {
+        +String id
+        +String name
+        +String email
+        +login()
+        +logout()
+    }
+    
+    class Order {
+        +String orderId
+        +Date createdDate
+        +Float totalAmount
+        +addItem()
+        +removeItem()
+    }
+    
+    class Product {
+        +String productId
+        +String name
+        +Float price
+        +getDetails()
+    }
+    
+    User "1" --> "*" Order : places
+    Order "1" --> "*" Product : contains
+\`\`\`
+
+## 5. 状态图 (State Diagram)
+展示状态转换逻辑。
+
+\`\`\`mermaid
+stateDiagram-v2
+    [*] --> 待处理
+    待处理 --> 处理中: 提交申请
+    处理中 --> 审核中: 提交审核
+    审核中 --> 已批准: 审核通过
+    审核中 --> 已拒绝: 审核不通过
+    已拒绝 --> 待处理: 重新提交
+    已批准 --> [*]
+    处理中 --> 已取消: 取消申请
+    已取消 --> [*]
+    
+    note right of 处理中: 可以取消或提交审核
+\`\`\`
+
+## 6. ER 图 (Entity Relationship)
+展示实体关系模型。
+
+\`\`\`mermaid
+erDiagram
+    DEPARTMENT {
+        string dept_id PK
+        string dept_name
+        string location
+    }
+    
+    EMPLOYEE {
+        string emp_id PK
+        string name
+        string email
+        string dept_id FK
+    }
+    
+    PROJECT {
+        string project_id PK
+        string project_name
+        date start_date
+    }
+    
+    DEPARTMENT ||--|{ EMPLOYEE : has
+    EMPLOYEE ||--o{ PROJECT : works_on
+\`\`\`
+
+## 7. 用户旅程图 (User Journey)
+展示用户体验流程。
+
+\`\`\`mermaid
+journey
+    title 网上购物用户体验
+    section 浏览阶段
+      浏览商品列表: 4: 用户
+      查看商品详情: 5: 用户
+      添加到购物车: 5: 用户
+    
+    section 下单阶段
+      填写收货地址: 3: 用户
+      选择支付方式: 4: 用户
+      完成支付: 5: 用户
+    
+    section 售后阶段
+      等待发货: 3: 用户
+      收到商品: 5: 用户
+      确认收货: 5: 用户
+\`\`\`
+
+## 8. 饼图 (Pie Chart)
+展示数据占比分布。
+
+\`\`\`mermaid
+pie
+    title 编程语言使用占比
+    "JavaScript" : 35
+    "Python" : 25
+    "Java" : 20
+    "Go" : 12
+    "Rust" : 8
+\`\`\`
+
+## 9. Git 图表 (Git Graph)
+展示 Git 分支历史。
+
+\`\`\`mermaid
+gitGraph
+    commit
+    branch develop
+    checkout develop
+    commit
+    commit
+    checkout main
+    merge develop
+    commit
+    branch feature
+    checkout feature
+    commit
+    commit
+    checkout develop
+    merge feature
+\`\`\`
+
+## 10. 思维导图 (Mindmap)
+展示层次结构和关联。
+
+\`\`\`mermaid
+mindmap
+  root((项目))
+    需求
+      功能需求
+      非功能需求
+    设计
+      架构设计
+      数据库设计
+      UI设计
+    开发
+      前端开发
+      后端开发
+    测试
+      单元测试
+      集成测试
+    部署
+      环境配置
+      上线流程
+\`\`\`
+
+## 11. 时间线 (Timeline)
+展示时间序列事件。
+
+\`\`\`mermaid
+timeline
+    title 产品发展历程
+    section 2024
+      1月 : 项目启动
+      3月 : 完成需求分析
+      6月 : 发布 beta 版本
+      9月 : 正式上线 v1.0
+    section 2025
+      2月 : 新增功能 A
+      5月 : 优化用户体验
+      8月 : 发布 v2.0
+\`\`\`
+`,
   EN: `## Markdown Features Demo
 
 ### 1. Typography & Styles
