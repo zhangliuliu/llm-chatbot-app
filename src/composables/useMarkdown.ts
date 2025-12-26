@@ -60,74 +60,41 @@ export function useMarkdown() {
   });
   md.use(markdownItKatex);
 
-    // 3. 优化：保留自定义 UI，但利用 hljs 实例逻辑
-    md.renderer.rules.fence = (tokens, idx, options, env, slf) => {
-      const token = tokens[idx];
-      if (!token) return "";
+  // 3. 优化：保留自定义 UI，但利用 hljs 实例逻辑
+  md.renderer.rules.fence = (tokens, idx, _options, _env, _slf) => {
+    const token = tokens[idx];
+    if (!token) return "";
 
-      const info = token.info ? md.utils.unescapeAll(token.info).trim() : "";
-      const lang = info.split(/\s+/g)[0] || "";
+    const info = token.info ? md.utils.unescapeAll(token.info).trim() : "";
+    const lang = info.split(/\s+/g)[0] || "";
 
-      // 新逻辑：检查 Mermaid 代码块是否已经完整闭合
-      // markdown-it 的 token.map[1] 是该块结束后的下一行行号
-      // 如果该块已闭合，倒数第一行应该是渲染标识符（如 ```）
-      const isMermaid = lang === "mermaid";
-      const isClosed = isMermaid && token.map && env.sourceLines && 
-                      env.sourceLines[token.map[1] - 1]?.trim().startsWith(token.markup);
+    const content = token.content;
 
-      const content = token.content;
+    // 获取高亮代码
+    let highlighted = "";
+    let language = lang || "text";
 
-      // 如果是已闭合的 Mermaid，返回渲染容器
-      if (isMermaid && isClosed) {
-        const escapedContent = md.utils.escapeHtml(content);
-        // Check if we have this content in cache
-        const cache = (env as any).mermaidCache as Map<string, string> | undefined;
-        const cachedSvg = cache?.get(content);
-
-        if (cachedSvg) {
-          return `<div class="mermaid-wrapper my-4" data-content="${escapedContent}" data-processed="true">
-            <div class="mermaid-render-target mermaid-fade-in">${cachedSvg}</div>
-          </div>`;
-        }
-
-        return `<div class="mermaid-wrapper my-4" data-content="${escapedContent}">
-          <div class="mermaid-source">
-            <div class="code-block my-2 rounded-lg overflow-hidden bg-[#282c34] border border-border/10 shadow-sm">
-              <div class="flex items-center justify-between px-3 py-1.5 bg-[#21252b] border-b border-white/5">
-                <span class="text-xs font-medium text-zinc-400 select-none font-mono lowercase">mermaid (rendering...)</span>
-              </div>
-              <pre class="hljs my-0! p-3! bg-transparent! rounded-none! overflow-x-auto"><code class="!font-mono text-sm !bg-transparent !p-0 !border-none">${escapedContent}</code></pre>
-            </div>
-          </div>
-          <div class="mermaid-render-target hidden"></div>
-        </div>`;
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        highlighted = hljs.highlight(content, {
+          language: lang,
+          ignoreIllegals: true,
+        }).value;
+      } catch (__) {
+        highlighted = md.utils.escapeHtml(content);
       }
-
-      // 获取高亮代码 (用于普通块或未完结的 mermaid)
-      let highlighted = "";
-      let language = lang || "text";
-
-      if (lang && hljs.getLanguage(lang)) {
-        try {
-          highlighted = hljs.highlight(content, {
-            language: lang,
-            ignoreIllegals: true,
-          }).value;
-        } catch (__) {
-          highlighted = md.utils.escapeHtml(content);
-        }
-      } else {
-        try {
-          const result = hljs.highlightAuto(content);
-          highlighted = result.value;
-          if (result.language && !lang) language = result.language;
-        } catch (__) {
-          highlighted = md.utils.escapeHtml(content);
-        }
+    } else {
+      try {
+        const result = hljs.highlightAuto(content);
+        highlighted = result.value;
+        if (result.language && !lang) language = result.language;
+      } catch (__) {
+        highlighted = md.utils.escapeHtml(content);
       }
+    }
 
-      // 返回标准漂亮的 UI
-      return `<div class="code-block my-2 rounded-lg overflow-hidden bg-[#282c34] border border-border/10 shadow-sm">
+    // 返回标准漂亮的 UI
+    return `<div class="code-block my-2 rounded-lg overflow-hidden bg-[#282c34] border border-border/10 shadow-sm">
       <div class="flex items-center justify-between px-3 py-1.5 bg-[#21252b] border-b border-white/5">
         <span class="text-xs font-medium text-zinc-400 select-none font-mono lowercase">${language}</span>
         <button class="copy-btn flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-100 transition-colors focus:outline-none">
@@ -137,50 +104,84 @@ export function useMarkdown() {
       </div>
       <pre class="hljs my-0! p-3! bg-transparent! rounded-none! overflow-x-auto"><code class="language-${language} !font-mono text-sm !bg-transparent !p-0 !border-none">${highlighted}</code></pre>
     </div>`;
-    };
+  };
 
-    function render(content: string, mermaidCache?: Map<string, string>) {
-      if (!content) return "";
-      try {
-        const env = { 
-          sourceLines: content.split("\n"),
-          mermaidCache // Pass cache to env for renderer rules
-        };
-        const rawHtml = md.render(content, env);
-        return DOMPurify.sanitize(rawHtml, {
-          // 确保允许你的自定义 UI 标签和属性
-          ADD_TAGS: ["button", "svg", "path", "use", "span", "img", "div", "pre", "code", "g", "circle", "rect", "line", "text", "style"],
-          ADD_ATTR: [
-            "xmlns",
-            "fill",
-            "viewBox",
-            "stroke",
-            "stroke-width",
-            "stroke-linecap",
-            "stroke-linejoin",
-            "d",
-            "class",
-            "id",
-            "x1", "y1", "x2", "y2", "x", "y", "width", "height", "r", "fill-opacity", "stroke-opacity", "transform", "style", "points",
-            "rx", "ry", "dx", "dy", "text-anchor", "marker-end", "marker-start",
-            // Image attributes
-            "src",
-            "alt",
-            "width",
-            "height",
-            "loading",
-            // Mermaid attributes
-            "data-processed",
-            "data-content",
-          ],
-          FORBID_TAGS: ["script"], // 移除 style 的禁用，因为 Mermaid SVG 经常包含内联 style
-          FORBID_ATTR: ["onerror", "onclick"],
-        });
-      } catch (err) {
-        console.error("Markdown render error:", err);
-        return DOMPurify.sanitize(content);
-      }
+  function render(content: string) {
+    if (!content) return "";
+    try {
+      const env = {
+        sourceLines: content.split("\n"),
+      };
+      const rawHtml = md.render(content, env);
+      return DOMPurify.sanitize(rawHtml, {
+        // 确保允许你的自定义 UI 标签和属性
+        ADD_TAGS: [
+          "button",
+          "svg",
+          "path",
+          "use",
+          "span",
+          "img",
+          "div",
+          "pre",
+          "code",
+          "g",
+          "circle",
+          "rect",
+          "line",
+          "text",
+          "style",
+        ],
+        ADD_ATTR: [
+          "xmlns",
+          "fill",
+          "viewBox",
+          "stroke",
+          "stroke-width",
+          "stroke-linecap",
+          "stroke-linejoin",
+          "d",
+          "class",
+          "id",
+          "x1",
+          "y1",
+          "x2",
+          "y2",
+          "x",
+          "y",
+          "width",
+          "height",
+          "r",
+          "fill-opacity",
+          "stroke-opacity",
+          "transform",
+          "style",
+          "points",
+          "rx",
+          "ry",
+          "dx",
+          "dy",
+          "text-anchor",
+          "marker-end",
+          "marker-start",
+          // Image attributes
+          "src",
+          "alt",
+          "width",
+          "height",
+          "loading",
+          // Mermaid attributes
+          "data-processed",
+          "data-content",
+        ],
+        FORBID_TAGS: ["script"], // 移除 style 的禁用，因为 Mermaid SVG 经常包含内联 style
+        FORBID_ATTR: ["onerror", "onclick"],
+      });
+    } catch (err) {
+      console.error("Markdown render error:", err);
+      return DOMPurify.sanitize(content);
     }
+  }
 
   return {
     render,

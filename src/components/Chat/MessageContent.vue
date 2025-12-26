@@ -16,7 +16,7 @@ const store = useChatStore();
 const { render } = useMarkdown();
 
 interface ContentBlock {
-  type: 'markdown' | 'mermaid';
+  type: "markdown" | "mermaid";
   content: string;
   key: string;
   rendered?: string; // Pre-rendered SVG for mermaid blocks
@@ -49,7 +49,7 @@ const parseContentBlocks = (content: string): ContentBlock[] => {
       const mdContent = content.substring(lastIndex, match.index);
       if (mdContent.trim()) {
         blocks.push({
-          type: 'markdown',
+          type: "markdown",
           content: mdContent,
           key: `md-${blockIndex++}`,
         });
@@ -60,7 +60,7 @@ const parseContentBlocks = (content: string): ContentBlock[] => {
     const mermaidContent = match[1] || "";
     const cachedSvg = mermaidRenderCache.get(mermaidContent);
     blocks.push({
-      type: 'mermaid',
+      type: "mermaid",
       content: mermaidContent,
       key: `mermaid-${blockIndex++}`,
       rendered: cachedSvg || undefined,
@@ -74,7 +74,7 @@ const parseContentBlocks = (content: string): ContentBlock[] => {
     const mdContent = content.substring(lastIndex);
     if (mdContent.trim()) {
       blocks.push({
-        type: 'markdown',
+        type: "markdown",
         content: mdContent,
         key: `md-${blockIndex++}`,
       });
@@ -89,7 +89,7 @@ const renderPendingMermaid = async () => {
   let hasNewRender = false;
 
   for (const block of contentBlocks.value) {
-    if (block.type === 'mermaid' && !block.rendered && block.content.trim()) {
+    if (block.type === "mermaid" && !block.rendered && block.content.trim()) {
       try {
         // Check syntax first
         await mermaid.parse(block.content);
@@ -120,7 +120,7 @@ const throttledUpdate = useThrottleFn(async (content: string) => {
   contentBlocks.value = parseContentBlocks(content);
   await nextTick();
   await renderPendingMermaid();
-}, 80);
+}, 100);
 
 const updateContent = async (content: string) => {
   if (!content) {
@@ -148,47 +148,77 @@ watch(
 </script>
 
 <template>
-  <Card class="overflow-hidden w-fit" :class="props.message.role === 'user'
-    ? 'bg-secondary text-secondary-foreground border-none rounded-2xl px-4 py-3 shadow-none'
-    : 'bg-transparent border-none shadow-none w-full min-w-0'
-    ">
+  <Card
+    class="overflow-hidden w-fit"
+    :class="
+      props.message.role === 'user'
+        ? 'bg-secondary text-secondary-foreground border-none rounded-2xl px-4 py-3 shadow-none'
+        : 'bg-transparent border-none shadow-none w-full min-w-0'
+    "
+  >
     <!-- Main Content -->
-    <div v-if="props.message.role === 'user'"
-      class="whitespace-pre-wrap text-sm md:text-base leading-7 md:leading-8 text-left wrap-break-word">
+    <div
+      v-if="props.message.role === 'user'"
+      class="whitespace-pre-wrap text-sm md:text-base leading-7 md:leading-8 text-left wrap-break-word"
+    >
       {{ props.message.content }}
     </div>
     <div v-else class="relative">
-      <TypingIndicator v-if="
-        !props.message.content &&
-        store.isStreaming &&
-        store.messages[store.messages.length - 1]?.id === props.message.id
-      " class="py-3" />
-      <div v-else class="markdown-body text-sm md:text-base leading-7 md:leading-8 text-left wrap-break-word" :class="{
-        'is-streaming':
-          store.isStreaming &&
-          store.messages[store.messages.length - 1]?.id === props.message.id,
-        'is-complete': !(
+      <TypingIndicator
+        v-if="
+          !props.message.content &&
           store.isStreaming &&
           store.messages[store.messages.length - 1]?.id === props.message.id
-        ),
-      }" @click="$emit('copyCode', $event)">
+        "
+        class="py-3"
+      />
+      <div
+        v-else
+        class="markdown-body text-sm md:text-base leading-7 md:leading-8 text-left wrap-break-word"
+        :class="{
+          'is-streaming':
+            store.isStreaming &&
+            store.messages[store.messages.length - 1]?.id === props.message.id,
+          'is-complete': !(
+            store.isStreaming &&
+            store.messages[store.messages.length - 1]?.id === props.message.id
+          ),
+        }"
+        @click="$emit('copyCode', $event)"
+      >
         <!-- Render blocks separately -->
         <template v-for="block in contentBlocks" :key="block.key">
           <!-- Markdown block -->
-          <div v-if="block.type === 'markdown'" v-html="render(block.content)"></div>
+          <div
+            v-if="block.type === 'markdown'"
+            v-html="render(block.content)"
+          ></div>
 
           <!-- Mermaid block -->
-          <div v-else-if="block.type === 'mermaid'" class="mermaid-container my-4">
-            <div v-if="block.rendered" class="mermaid-wrapper rendered" v-html="block.rendered">
-            </div>
+          <div
+            v-else-if="block.type === 'mermaid'"
+            class="mermaid-container my-4"
+          >
+            <div
+              v-if="block.rendered"
+              class="mermaid-wrapper rendered"
+              v-html="block.rendered"
+            ></div>
             <div v-else class="mermaid-wrapper loading">
-              <div class="code-block my-2 rounded-lg overflow-hidden bg-[#282c34] border border-border/10 shadow-sm">
-                <div class="flex items-center justify-between px-3 py-1.5 bg-[#21252b] border-b border-white/5">
-                  <span class="text-xs font-medium text-zinc-400 select-none font-mono lowercase">mermaid
-                    (rendering...)</span>
+              <div
+                class="code-block my-2 rounded-lg overflow-hidden bg-[#282c34] border border-border/10 shadow-sm"
+              >
+                <div
+                  class="flex items-center justify-between px-3 py-1.5 bg-[#21252b] border-b border-white/5"
+                >
+                  <span
+                    class="text-xs font-medium text-zinc-400 select-none font-mono lowercase"
+                    >mermaid (rendering...)</span
+                  >
                 </div>
                 <pre
-                  class="hljs my-0! p-3! bg-transparent! rounded-none! overflow-x-auto"><code class="!font-mono text-sm !bg-transparent !p-0 !border-none">{{ block.content }}</code></pre>
+                  class="hljs my-0! p-3! bg-transparent! rounded-none! overflow-x-auto"
+                ><code class="font-mono! text-sm bg-transparent! p-0! border-none!">{{ block.content }}</code></pre>
               </div>
             </div>
           </div>
@@ -260,17 +290,17 @@ watch(
 }
 
 /* Remove margin from the first element */
-.markdown-body>*:first-child {
+.markdown-body > *:first-child {
   margin-top: 0 !important;
 }
 
 /* Remove margin from the last element to fix bubble spacing */
-.markdown-body>*:last-child {
+.markdown-body > *:last-child {
   margin-bottom: 0 !important;
 }
 
 /* Cursor effect for streaming */
-.markdown-body.is-streaming>*:last-child::after {
+.markdown-body.is-streaming > *:last-child::after {
   content: "";
   display: inline-block;
   width: 0.5em;
@@ -283,7 +313,6 @@ watch(
 }
 
 @keyframes blink {
-
   0%,
   100% {
     opacity: 1;
@@ -398,8 +427,8 @@ watch(
   transition: transform 0.2s ease;
 }
 
-.markdown-body p>img:only-child,
-.markdown-body p>a:only-child>img:only-child {
+.markdown-body p > img:only-child,
+.markdown-body p > a:only-child > img:only-child {
   margin: 0;
 }
 
