@@ -13,16 +13,15 @@ export const MOCK_RESPONSES = {
 展示流程和控制逻辑。
 
 \`\`\`mermaid
-graph LR
-    A[开始] --> B{判断条件}
-    B -->|条件为真| C[执行操作A]
-    B -->|条件为假| D[执行操作B]
-    C --> E[合并结果]
-    D --> E
-    E --> F[结束]
-    
-    style A fill:#e1f5e1,stroke:#333,stroke-width:2px
-    style F fill:#ffe1e1,stroke:#333,stroke-width:2px
+graph TD;
+    A[起床] --> B{是否周末?};
+    B -->|是| C[睡懒觉];
+    B -->|否| D[去上班];
+    C --> E[吃早午餐];
+    D --> F[开会];
+    F --> G[写代码];
+    E --> H[享受一天];
+    G --> H;
 \`\`\`
 
 ## 2. 时序图 (Sequence Diagram)
@@ -30,19 +29,17 @@ graph LR
 
 \`\`\`mermaid
 sequenceDiagram
-    actor User as 用户
-    participant Web as 前端
-    participant API as 后端API
-    participant DB as 数据库
-    
-    User->>Web: 发起请求
-    Web->>API: 调用接口
-    API->>DB: 查询数据
-    DB-->>API: 返回数据
-    API-->>Web: 响应结果
-    Web-->>User: 展示页面
-    
-    Note over User,Web: 完整的请求-响应流程
+    participant 用户
+    participant 前端
+    participant 后端
+    participant 数据库
+
+    用户->>前端: 点击登录
+    前端->>后端: 发送登录请求
+    后端->>数据库: 查询用户信息
+    数据库-->>后端: 返回数据
+    后端-->>前端: 返回令牌
+    前端-->>用户: 显示主页
 \`\`\`
 
 ## 3. 甘特图 (Gantt Chart)
@@ -50,21 +47,17 @@ sequenceDiagram
 
 \`\`\`mermaid
 gantt
-    title 软件开发项目计划
+    title 项目开发计划
     dateFormat  YYYY-MM-DD
-    section 需求阶段
-    需求分析       :a1, 2025-01-01, 7d
-    原型设计       :a2, after a1, 5d
-    
-    section 开发阶段
-    前端开发       :b1, 2025-01-13, 21d
-    后端开发       :b2, 2025-01-13, 21d
-    接口联调       :b3, after b1 b2, 5d
-    
-    section 测试阶段
-    单元测试       :c1, 2025-02-03, 7d
-    集成测试       :c2, after c1, 7d
-    验收测试       :c3, after c2, 5d
+    section 设计
+    需求分析    :a1, 2024-01-01, 7d
+    原型设计    :a2, after a1, 5d
+    section 开发
+    前端开发    :b1, after a2, 10d
+    后端开发    :b2, after a2, 14d
+    section 测试
+    集成测试    :2024-02-01, 7d
+    用户测试    :2024-02-10, 5d
 \`\`\`
 
 ## 4. 类图 (Class Diagram)
@@ -72,31 +65,22 @@ gantt
 
 \`\`\`mermaid
 classDiagram
-    class User {
-        +String id
+    class Animal {
         +String name
-        +String email
-        +login()
-        +logout()
+        +int age
+        +eat()
+        +sleep()
     }
-    
-    class Order {
-        +String orderId
-        +Date createdDate
-        +Float totalAmount
-        +addItem()
-        +removeItem()
+    class Dog {
+        +String breed
+        +bark()
     }
-    
-    class Product {
-        +String productId
-        +String name
-        +Float price
-        +getDetails()
+    class Cat {
+        +String color
+        +meow()
     }
-    
-    User "1" --> "*" Order : places
-    Order "1" --> "*" Product : contains
+    Animal <|-- Dog
+    Animal <|-- Cat
 \`\`\`
 
 ## 5. 状态图 (State Diagram)
@@ -104,17 +88,12 @@ classDiagram
 
 \`\`\`mermaid
 stateDiagram-v2
-    [*] --> 待处理
-    待处理 --> 处理中: 提交申请
-    处理中 --> 审核中: 提交审核
-    审核中 --> 已批准: 审核通过
-    审核中 --> 已拒绝: 审核不通过
-    已拒绝 --> 待处理: 重新提交
-    已批准 --> [*]
-    处理中 --> 已取消: 取消申请
-    已取消 --> [*]
-    
-    note right of 处理中: 可以取消或提交审核
+    [*] --> 待机
+    待机 --> 运行中 : 启动
+    运行中 --> 暂停 : 暂停按钮
+    暂停 --> 运行中 : 继续按钮
+    运行中 --> 完成 : 任务结束
+    完成 --> [*]
 \`\`\`
 
 ## 6. ER 图 (Entity Relationship)
@@ -150,21 +129,16 @@ erDiagram
 
 \`\`\`mermaid
 journey
-    title 网上购物用户体验
-    section 浏览阶段
-      浏览商品列表: 4: 用户
+    title 用户购物旅程
+    section 浏览
       查看商品详情: 5: 用户
-      添加到购物车: 5: 用户
-    
-    section 下单阶段
-      填写收货地址: 3: 用户
-      选择支付方式: 4: 用户
-      完成支付: 5: 用户
-    
-    section 售后阶段
-      等待发货: 3: 用户
-      收到商品: 5: 用户
-      确认收货: 5: 用户
+      加入购物车: 3: 用户
+    section 购买
+      结算: 4: 用户
+      支付: 5: 用户
+    section 收货
+      等待快递: 2: 用户
+      确认收货: 4: 用户
 \`\`\`
 
 ## 8. 饼图 (Pie Chart)
@@ -186,60 +160,14 @@ pie
 \`\`\`mermaid
 gitGraph
     commit
-    branch develop
-    checkout develop
-    commit
-    commit
-    checkout main
-    merge develop
-    commit
     branch feature
     checkout feature
     commit
     commit
-    checkout develop
+    checkout main
+    commit
     merge feature
-\`\`\`
-
-## 10. 思维导图 (Mindmap)
-展示层次结构和关联。
-
-\`\`\`mermaid
-mindmap
-  root((项目))
-    需求
-      功能需求
-      非功能需求
-    设计
-      架构设计
-      数据库设计
-      UI设计
-    开发
-      前端开发
-      后端开发
-    测试
-      单元测试
-      集成测试
-    部署
-      环境配置
-      上线流程
-\`\`\`
-
-## 11. 时间线 (Timeline)
-展示时间序列事件。
-
-\`\`\`mermaid
-timeline
-    title 产品发展历程
-    section 2024
-      1月 : 项目启动
-      3月 : 完成需求分析
-      6月 : 发布 beta 版本
-      9月 : 正式上线 v1.0
-    section 2025
-      2月 : 新增功能 A
-      5月 : 优化用户体验
-      8月 : 发布 v2.0
+    commit
 \`\`\`
 `,
   EN: `## Markdown Features Demo
@@ -318,11 +246,11 @@ The solution is $x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$.
 \`\`\`mermaid
 graph TD
     A[开始] --> B{是否完成?}
-    B -->|是| C[结束]
-    B -->|否| D[继续处理]
+    B -- 是 --> C[结束]
+    B -- 否 --> D[继续处理]
     D --> B
-    style A fill:#f9f,stroke:#333,stroke-width:2px
-    style C fill:#bbf,stroke:#333,stroke-width:2px
+    style A fill:#f9f,stroke:#333,stroke-width:2px;
+    style C fill:#bbf,stroke:#333,stroke-width:2px;
 \`\`\`
 
 **时序图 (Sequence Diagram):**
@@ -525,11 +453,11 @@ $$
 \`\`\`mermaid
 graph TD
     A[开始] --> B{是否完成?}
-    B -->|是| C[结束]
-    B -->|否| D[继续处理]
+    B -- 是 --> C[结束]
+    B -- 否 --> D[继续处理]
     D --> B
-    style A fill:#f9f,stroke:#333,stroke-width:2px
-    style C fill:#bbf,stroke:#333,stroke-width:2px
+    style A fill:#f9f,stroke:#333,stroke-width:2px;
+    style C fill:#bbf,stroke:#333,stroke-width:2px;
 \`\`\`
 
 **时序图 (Sequence Diagram):**
