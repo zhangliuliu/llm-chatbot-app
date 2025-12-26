@@ -85,6 +85,8 @@ export async function* mockStreamResponse(
     responseText = MOCK_RESPONSES.ULTRA_LONG;
   } else if (prompt.includes("mermaid")) {
     responseText = MOCK_RESPONSES.MERMAID_DEMO;
+  } else if (prompt.includes("markmap")) {
+    responseText = MOCK_RESPONSES.MARKMAP_DEMO;
   } else {
     responseText = Math.random() > 0.5 ? MOCK_RESPONSES.CN : MOCK_RESPONSES.EN;
   }
