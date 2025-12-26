@@ -19,11 +19,13 @@ interface ContentBlock {
   type: "markdown" | "mermaid";
   content: string;
   key: string;
+  startPos: number; // Position of this block in original content
   rendered?: string; // Pre-rendered SVG for mermaid blocks
 }
 
 const contentBlocks = ref<ContentBlock[]>([]);
 const mermaidRenderCache = new Map<string, string>(); // content -> svg
+const lastParsedLength = ref(0); // Track last parsed content position for incremental parsing
 
 // Initialize mermaid
 mermaid.initialize({
@@ -33,7 +35,10 @@ mermaid.initialize({
   fontFamily: "inherit",
 });
 
-// Parse content into blocks
+// Block key counter for unique keys
+let blockKeyCounter = 0;
+
+// Parse content into blocks (full parse - used for initial or reset)
 const parseContentBlocks = (content: string): ContentBlock[] => {
   if (!content) return [];
 
@@ -41,7 +46,6 @@ const parseContentBlocks = (content: string): ContentBlock[] => {
   const mermaidRegex = /```mermaid\n([\s\S]*?)```/g;
   let lastIndex = 0;
   let match;
-  let blockIndex = 0;
 
   while ((match = mermaidRegex.exec(content)) !== null) {
     // Add markdown block before mermaid
@@ -51,7 +55,8 @@ const parseContentBlocks = (content: string): ContentBlock[] => {
         blocks.push({
           type: "markdown",
           content: mdContent,
-          key: `md-${blockIndex++}`,
+          key: `md-${blockKeyCounter++}`,
+          startPos: lastIndex,
         });
       }
     }
@@ -62,7 +67,8 @@ const parseContentBlocks = (content: string): ContentBlock[] => {
     blocks.push({
       type: "mermaid",
       content: mermaidContent,
-      key: `mermaid-${blockIndex++}`,
+      key: `mermaid-${blockKeyCounter++}`,
+      startPos: match.index,
       rendered: cachedSvg || undefined,
     });
 
@@ -76,12 +82,128 @@ const parseContentBlocks = (content: string): ContentBlock[] => {
       blocks.push({
         type: "markdown",
         content: mdContent,
-        key: `md-${blockIndex++}`,
+        key: `md-${blockKeyCounter++}`,
+        startPos: lastIndex,
       });
     }
   }
 
   return blocks;
+};
+
+// Check if content has incomplete mermaid block (has opening but no closing)
+const hasIncompleteMermaid = (content: string): boolean => {
+  const mermaidOpenRegex = /```mermaid\n/g;
+  const mermaidCloseRegex = /```/g;
+
+  const openMatches = content.match(mermaidOpenRegex);
+  const closeMatches = content.match(mermaidCloseRegex);
+
+  const openCount = openMatches ? openMatches.length : 0;
+  const closeCount = closeMatches ? closeMatches.length : 0;
+
+  return openCount > closeCount;
+};
+
+// Incremental parse - only parse new content and append to existing blocks
+// 增量解析：只解析新增内容并追加到现有块
+const parseContentBlocksIncremental = (
+  content: string, // 完整内容
+  existingBlocks: ContentBlock[], // 已解析的块列表
+  lastLength: number // 上次解析的位置
+): { blocks: ContentBlock[]; newLength: number } => {
+  // Content got shorter (unlikely during streaming), do full parse
+  // 内容变短（流式输出时不太可能），执行完整解析
+  if (content.length < lastLength) {
+    blockKeyCounter = 0; // Reset counter on full parse
+    lastParsedLength.value = content.length;
+    return {
+      blocks: parseContentBlocks(content),
+      newLength: content.length,
+    };
+  }
+
+  // No new content - 无新内容，直接返回
+  if (content.length === lastLength) {
+    return { blocks: existingBlocks, newLength: lastLength };
+  }
+
+  // Get new content portion - 获取新增内容部分
+  const newContent = content.substring(lastLength);
+
+  // Check if last block was markdown and can be appended to
+  // 检查最后一个块是否是 markdown，可以追加内容
+  const lastBlock = existingBlocks[existingBlocks.length - 1];
+
+  // If last block is markdown, try to append new content
+  // 如果最后一块是 markdown，尝试追加新内容
+  if (lastBlock && lastBlock.type === "markdown") {
+    const combinedContent = lastBlock.content + newContent;
+    const mermaidRegex = /```mermaid\n([\s\S]*?)```/g;
+
+    // Check if new content contains complete mermaid blocks
+    // 检查合并后的内容是否包含完整的 mermaid 块
+    let match;
+    let hasMermaid = false;
+
+    while ((match = mermaidRegex.exec(combinedContent)) !== null) {
+      hasMermaid = true;
+      break;
+    }
+
+    if (!hasMermaid) {
+      // No complete mermaid in new portion, just append to last markdown block
+      // 新增部分没有完整的 mermaid，直接追加到最后一个 markdown 块
+      const newBlocks = [...existingBlocks];
+      newBlocks[newBlocks.length - 1] = {
+        ...lastBlock,
+        content: combinedContent,
+      };
+      return { blocks: newBlocks, newLength: content.length };
+    }
+
+    // Check for incomplete mermaid (opening without closing)
+    // 检查是否有不完整的 mermaid（有开头无结尾）
+    if (hasIncompleteMermaid(combinedContent)) {
+      // Incomplete mermaid found, append to last block without re-parsing
+      // 发现不完整的 mermaid，直接追加到最后一块，不重新解析
+      const newBlocks = [...existingBlocks];
+      newBlocks[newBlocks.length - 1] = {
+        ...lastBlock,
+        content: combinedContent,
+      };
+      return { blocks: newBlocks, newLength: content.length };
+    }
+
+    // Complete mermaid found, need to re-parse from the startPos of the last markdown block
+    // 发现完整的 mermaid，需要从最后一个 markdown 块的起始位置重新解析
+    const reparseFrom = content.substring(lastBlock.startPos);
+    const newParsedBlocks = parseContentBlocks(reparseFrom);
+
+    // Adjust start positions for new blocks
+    // 调整新块的起始位置
+    const adjustedBlocks = newParsedBlocks.map((b) => ({
+      ...b,
+      key: `block-${blockKeyCounter++}`, // Generate unique keys - 生成唯一键值
+      startPos: b.startPos + lastBlock.startPos, // Adjust position - 调整位置
+    }));
+
+    // Replace last block with new parsed blocks
+    // 用新解析的块替换最后一个块
+    const newBlocks = [...existingBlocks.slice(0, -1), ...adjustedBlocks];
+    return { blocks: newBlocks, newLength: content.length };
+  }
+
+  // Append new content as markdown block (will be split in next update if contains mermaid)
+  // 新增内容作为 markdown 块追加（如果包含 mermaid，下次更新时会自动分割）
+  const newBlocks = [...existingBlocks];
+  newBlocks.push({
+    type: "markdown",
+    content: newContent,
+    key: `block-${blockKeyCounter++}`,
+    startPos: lastLength,
+  });
+  return { blocks: newBlocks, newLength: content.length };
 };
 
 // Render Mermaid blocks that haven't been rendered yet
@@ -117,7 +239,13 @@ const renderPendingMermaid = async () => {
 
 // Throttled update for streaming
 const throttledUpdate = useThrottleFn(async (content: string) => {
-  contentBlocks.value = parseContentBlocks(content);
+  const { blocks, newLength } = parseContentBlocksIncremental(
+    content,
+    contentBlocks.value,
+    lastParsedLength.value
+  );
+  contentBlocks.value = blocks;
+  lastParsedLength.value = newLength;
   await nextTick();
   await renderPendingMermaid();
 }, 100);
@@ -125,6 +253,7 @@ const throttledUpdate = useThrottleFn(async (content: string) => {
 const updateContent = async (content: string) => {
   if (!content) {
     contentBlocks.value = [];
+    lastParsedLength.value = 0;
     return;
   }
   await throttledUpdate(content);
@@ -137,8 +266,10 @@ watch(
     if (isStreaming && props.message.role === "assistant") {
       await updateContent(content || "");
     } else {
-      // Final render when streaming completes
+      // Final render when streaming completes - do full parse
+      blockKeyCounter = 0; // Reset counter on final render
       contentBlocks.value = parseContentBlocks(content || "");
+      lastParsedLength.value = (content || "").length;
       await nextTick();
       await renderPendingMermaid();
     }
