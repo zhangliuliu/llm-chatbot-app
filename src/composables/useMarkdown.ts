@@ -131,6 +131,7 @@ export function useMarkdown() {
           "line",
           "text",
           "style",
+          "foreignObject",
         ],
         ADD_ATTR: [
           "xmlns",
@@ -173,6 +174,9 @@ export function useMarkdown() {
           // Mermaid attributes
           "data-processed",
           "data-content",
+          // Markmap attributes
+          "data-depth",
+          "data-path",
         ],
         FORBID_TAGS: ["script"], // 移除 style 的禁用，因为 Mermaid SVG 经常包含内联 style
         FORBID_ATTR: ["onerror", "onclick"],

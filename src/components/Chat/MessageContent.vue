@@ -16,15 +16,16 @@ const store = useChatStore();
 const { render } = useMarkdown();
 
 interface ContentBlock {
-  type: "markdown" | "mermaid";
+  type: "markdown" | "mermaid" | "markmap";
   content: string;
   key: string;
   startPos: number; // Position of this block in original content
-  rendered?: string; // Pre-rendered SVG for mermaid blocks
+  rendered?: string; // Pre-rendered SVG for mermaid/markmap blocks
 }
 
 const contentBlocks = ref<ContentBlock[]>([]);
 const mermaidRenderCache = new Map<string, string>(); // content -> svg
+const markmapRenderCache = new Map<string, string>(); // content -> svg
 const lastParsedLength = ref(0); // Track last parsed content position for incremental parsing
 
 // Initialize mermaid
@@ -43,12 +44,13 @@ const parseContentBlocks = (content: string): ContentBlock[] => {
   if (!content) return [];
 
   const blocks: ContentBlock[] = [];
-  const mermaidRegex = /```mermaid\n([\s\S]*?)```/g;
+  // Combined regex to match both mermaid and markmap blocks
+  const diagramRegex = /```(mermaid|markmap)\n([\s\S]*?)```/g;
   let lastIndex = 0;
   let match;
 
-  while ((match = mermaidRegex.exec(content)) !== null) {
-    // Add markdown block before mermaid
+  while ((match = diagramRegex.exec(content)) !== null) {
+    // Add markdown block before diagram
     if (match.index > lastIndex) {
       const mdContent = content.substring(lastIndex, match.index);
       if (mdContent.trim()) {
@@ -61,16 +63,29 @@ const parseContentBlocks = (content: string): ContentBlock[] => {
       }
     }
 
-    // Add mermaid block
-    const mermaidContent = match[1] || "";
-    const cachedSvg = mermaidRenderCache.get(mermaidContent);
-    blocks.push({
-      type: "mermaid",
-      content: mermaidContent,
-      key: `mermaid-${blockKeyCounter++}`,
-      startPos: match.index,
-      rendered: cachedSvg || undefined,
-    });
+    // Add diagram block (mermaid or markmap)
+    const diagramType = match[1] as "mermaid" | "markmap";
+    const diagramContent = match[2] || "";
+
+    if (diagramType === "mermaid") {
+      const cachedSvg = mermaidRenderCache.get(diagramContent);
+      blocks.push({
+        type: "mermaid",
+        content: diagramContent,
+        key: `mermaid-${blockKeyCounter++}`,
+        startPos: match.index,
+        rendered: cachedSvg || undefined,
+      });
+    } else {
+      const cachedSvg = markmapRenderCache.get(diagramContent);
+      blocks.push({
+        type: "markmap",
+        content: diagramContent,
+        key: `markmap-${blockKeyCounter++}`,
+        startPos: match.index,
+        rendered: cachedSvg || undefined,
+      });
+    }
 
     lastIndex = match.index + match[0].length;
   }
@@ -91,18 +106,39 @@ const parseContentBlocks = (content: string): ContentBlock[] => {
   return blocks;
 };
 
-// Check if content has incomplete mermaid block (has opening but no closing)
-const hasIncompleteMermaid = (content: string): boolean => {
-  const mermaidOpenRegex = /```mermaid\n/g;
-  const mermaidCloseRegex = /```/g;
-
-  const openMatches = content.match(mermaidOpenRegex);
-  const closeMatches = content.match(mermaidCloseRegex);
-
-  const openCount = openMatches ? openMatches.length : 0;
-  const closeCount = closeMatches ? closeMatches.length : 0;
-
-  return openCount > closeCount;
+// Check if content has incomplete diagram block (has opening but no closing)
+// 使用更精确的检测逻辑，避免与普通代码块混淆
+const hasIncompleteDiagram = (content: string): boolean => {
+  // 使用栈式解析来精确检测代码块状态
+  let inCodeBlock = false;
+  let inDiagramBlock = false;
+  const lines = content.split('\n');
+  
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    
+    if (!inCodeBlock) {
+      // 检查是否是 diagram 代码块开始
+      if (/^```(mermaid|markmap)$/.test(trimmedLine)) {
+        inCodeBlock = true;
+        inDiagramBlock = true;
+      }
+      // 检查是否是普通代码块开始
+      else if (/^```/.test(trimmedLine)) {
+        inCodeBlock = true;
+        inDiagramBlock = false;
+      }
+    } else {
+      // 在代码块内，检查是否是结束标记
+      if (/^```$/.test(trimmedLine)) {
+        inCodeBlock = false;
+        inDiagramBlock = false;
+      }
+    }
+  }
+  
+  // 如果最后仍在 diagram 代码块内，说明未闭合
+  return inDiagramBlock;
 };
 
 // Incremental parse - only parse new content and append to existing blocks
@@ -139,21 +175,16 @@ const parseContentBlocksIncremental = (
   // 如果最后一块是 markdown，尝试追加新内容
   if (lastBlock && lastBlock.type === "markdown") {
     const combinedContent = lastBlock.content + newContent;
-    const mermaidRegex = /```mermaid\n([\s\S]*?)```/g;
+    const diagramRegex = /```(mermaid|markmap)\n([\s\S]*?)```/g;
 
-    // Check if new content contains complete mermaid blocks
-    // 检查合并后的内容是否包含完整的 mermaid 块
-    let match;
-    let hasMermaid = false;
+    // Check if new content contains complete diagram blocks
+    // 检查合并后的内容是否包含完整的 diagram 块
+    const hasDiagram = diagramRegex.test(combinedContent);
+    diagramRegex.lastIndex = 0; // Reset regex state
 
-    while ((match = mermaidRegex.exec(combinedContent)) !== null) {
-      hasMermaid = true;
-      break;
-    }
-
-    if (!hasMermaid) {
-      // No complete mermaid in new portion, just append to last markdown block
-      // 新增部分没有完整的 mermaid，直接追加到最后一个 markdown 块
+    if (!hasDiagram) {
+      // No complete diagram in new portion, just append to last markdown block
+      // 新增部分没有完整的 diagram，直接追加到最后一个 markdown 块
       const newBlocks = [...existingBlocks];
       newBlocks[newBlocks.length - 1] = {
         ...lastBlock,
@@ -162,11 +193,11 @@ const parseContentBlocksIncremental = (
       return { blocks: newBlocks, newLength: content.length };
     }
 
-    // Check for incomplete mermaid (opening without closing)
-    // 检查是否有不完整的 mermaid（有开头无结尾）
-    if (hasIncompleteMermaid(combinedContent)) {
-      // Incomplete mermaid found, append to last block without re-parsing
-      // 发现不完整的 mermaid，直接追加到最后一块，不重新解析
+    // Check for incomplete diagram (opening without closing)
+    // 检查是否有不完整的 diagram（有开头无结尾）
+    if (hasIncompleteDiagram(combinedContent)) {
+      // Incomplete diagram found, append to last block without re-parsing
+      // 发现不完整的 diagram，直接追加到最后一块，不重新解析
       const newBlocks = [...existingBlocks];
       newBlocks[newBlocks.length - 1] = {
         ...lastBlock,
@@ -175,8 +206,8 @@ const parseContentBlocksIncremental = (
       return { blocks: newBlocks, newLength: content.length };
     }
 
-    // Complete mermaid found, need to re-parse from the startPos of the last markdown block
-    // 发现完整的 mermaid，需要从最后一个 markdown 块的起始位置重新解析
+    // Complete diagram found, need to re-parse from the startPos of the last markdown block
+    // 发现完整的 diagram，需要从最后一个 markdown 块的起始位置重新解析
     const reparseFrom = content.substring(lastBlock.startPos);
     const newParsedBlocks = parseContentBlocks(reparseFrom);
 
@@ -194,8 +225,8 @@ const parseContentBlocksIncremental = (
     return { blocks: newBlocks, newLength: content.length };
   }
 
-  // Append new content as markdown block (will be split in next update if contains mermaid)
-  // 新增内容作为 markdown 块追加（如果包含 mermaid，下次更新时会自动分割）
+  // Append new content as markdown block (will be split in next update if contains diagram)
+  // 新增内容作为 markdown 块追加（如果包含 diagram，下次更新时会自动分割）
   const newBlocks = [...existingBlocks];
   newBlocks.push({
     type: "markdown",
@@ -237,6 +268,97 @@ const renderPendingMermaid = async () => {
   return hasNewRender;
 };
 
+// Render Markmap blocks that haven't been rendered yet
+// Two-step approach: 1) Transform to JSON, 2) Render in DOM
+const renderPendingMarkmap = async () => {
+  let hasNewRender = false;
+
+  for (const block of contentBlocks.value) {
+    if (block.type === "markmap" && !block.rendered && block.content.trim()) {
+      // Check if we have a cached version
+      const cached = markmapRenderCache.get(block.content);
+      if (cached) {
+        block.rendered = cached;
+        hasNewRender = true;
+        continue;
+      }
+
+      try {
+        // Step 1: Transform markdown to markmap data structure
+        const { Transformer } = await import("markmap-lib");
+        const transformer = new Transformer();
+        const { root } = transformer.transform(block.content);
+
+        // Step 2: Create SVG placeholder with data embedded
+        const jsonData = JSON.stringify(root);
+        const escapedJson = jsonData.replace(/'/g, "&#39;"); // Escape single quotes for HTML attribute
+        
+        // Generate SVG placeholder that will be rendered client-side
+        const svgPlaceholder = `<svg class="markmap-svg" data-markmap-id="${block.key}" data-json='${escapedJson}' style="width: 100%; min-height: 300px;"></svg>`;
+
+        // Cache and set result
+        markmapRenderCache.set(block.content, svgPlaceholder);
+        block.rendered = svgPlaceholder;
+        hasNewRender = true;
+      } catch (error) {
+        console.error("Markmap transform error:", error);
+        if (!store.isStreaming) {
+          block.rendered = `<div class="text-red-500 text-sm p-4">Markmap transform error: ${error}</div>`;
+        }
+      }
+    }
+  }
+
+  // Step 3: After DOM updates, find and render all markmap SVGs
+  if (hasNewRender) {
+    await nextTick();
+    await renderMarkmapSVGs();
+  }
+
+  return hasNewRender;
+};
+
+// Find and render markmap SVGs in the DOM
+const renderMarkmapSVGs = async () => {
+  try {
+    const { Markmap } = await import("markmap-view");
+    
+    // Find all markmap SVG elements that haven't been initialized
+    const svgElements = document.querySelectorAll('svg.markmap-svg[data-json]:not([data-initialized])');
+    
+    for (const svgEl of Array.from(svgElements)) {
+      const svg = svgEl as SVGSVGElement;
+      const jsonData = svg.getAttribute('data-json');
+      
+      if (!jsonData) continue;
+      
+      try {
+        const root = JSON.parse(jsonData);
+        
+        // Clear any existing content
+        svg.innerHTML = '';
+        
+        // Create markmap instance
+        Markmap.create(svg, {
+          autoFit: true,
+          duration: 0, // No animation for static feel
+          embedGlobalCSS: true,
+          zoom: false, // Disable zoom
+          pan: false, // Disable pan
+        }, root);
+        
+        // Mark as initialized to avoid re-rendering
+        svg.setAttribute('data-initialized', 'true');
+      } catch (error) {
+        console.error('Error rendering markmap:', error);
+      }
+    }
+  } catch (error) {
+    console.error('Error loading markmap-view:', error);
+  }
+};
+
+
 // Throttled update for streaming
 const throttledUpdate = useThrottleFn(async (content: string) => {
   const { blocks, newLength } = parseContentBlocksIncremental(
@@ -248,6 +370,7 @@ const throttledUpdate = useThrottleFn(async (content: string) => {
   lastParsedLength.value = newLength;
   await nextTick();
   await renderPendingMermaid();
+  await renderPendingMarkmap();
 }, 100);
 
 const updateContent = async (content: string) => {
@@ -272,6 +395,7 @@ watch(
       lastParsedLength.value = (content || "").length;
       await nextTick();
       await renderPendingMermaid();
+      await renderPendingMarkmap();
     }
   },
   { immediate: true }
@@ -345,6 +469,37 @@ watch(
                   <span
                     class="text-xs font-medium text-zinc-400 select-none font-mono lowercase"
                     >mermaid (rendering...)</span
+                  >
+                </div>
+                <pre
+                  class="hljs my-0! p-3! bg-transparent! rounded-none! overflow-x-auto"
+                ><code class="font-mono! text-sm bg-transparent! p-0! border-none!">{{ block.content }}</code></pre>
+              </div>
+            </div>
+          </div>
+
+          <!-- Markmap block -->
+          <div
+            v-else-if="block.type === 'markmap'"
+            class="markmap-container my-4"
+          >
+            <!-- Rendered markmap -->
+            <div
+              v-if="block.rendered"
+              class="markmap-wrapper rendered"
+              v-html="block.rendered"
+            ></div>
+            <!-- Loading state -->
+            <div v-else class="markmap-wrapper loading">
+              <div
+                class="code-block my-2 rounded-lg overflow-hidden bg-[#282c34] border border-border/10 shadow-sm"
+              >
+                <div
+                  class="flex items-center justify-between px-3 py-1.5 bg-[#21252b] border-b border-white/5"
+                >
+                  <span
+                    class="text-xs font-medium text-zinc-400 select-none font-mono lowercase"
+                    >markmap (rendering...)</span
                   >
                 </div>
                 <pre
@@ -614,5 +769,60 @@ watch(
 /* 适配暗色模式 */
 .dark .mermaid-wrapper.rendered svg {
   filter: invert(0.9) hue-rotate(180deg);
+}
+
+/* Markmap Styles */
+.markmap-container {
+  margin: 1rem 0;
+}
+
+.markmap-wrapper {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 1.25rem;
+  border-radius: 0.75rem;
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+}
+
+.markmap-wrapper.loading {
+  transition: all 0.3s ease;
+  min-height: 100px;
+}
+
+.markmap-wrapper.rendered {
+  /* Wrapper for rendered diagrams */
+  background: rgba(255, 255, 255, 0.98);
+  overflow-x: auto;
+}
+
+.markmap-wrapper.rendered svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+  opacity: 1;
+  animation: markmapFadeIn 0.4s ease-in-out;
+  pointer-events: none; /* Disable all interactions */
+}
+
+@keyframes markmapFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Dark mode - use light background for markmap since it has colored elements */
+.dark .markmap-wrapper.rendered {
+  background: rgba(255, 255, 255, 0.95);
 }
 </style>
