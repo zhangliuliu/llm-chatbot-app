@@ -380,6 +380,8 @@ watch(
 </template>
 
 <style>
+@reference "@/style.css";
+
 /* Markdown Styles Scoped via deeply selection or global css */
 .markdown-body {
   line-height: 1.75;
@@ -597,7 +599,7 @@ watch(
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border);
+  /* border: 1px solid var(--border); */ /* Removed as per user request */
 }
 
 .mermaid-wrapper.loading {
@@ -631,9 +633,30 @@ watch(
   }
 }
 
+/* Mermaid Actions Bar Styling */
+.mermaid-block-group:hover .mermaid-actions-bar {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.mermaid-wrapper.rendered svg {
+  max-width: none;
+  height: auto;
+  background: white;
+  padding: 0;
+  border-radius: 0.75rem;
+  opacity: 1;
+  animation: mermaidFadeIn 0.4s ease-in-out;
+}
+
 /* 适配暗色模式 */
 .dark .mermaid-wrapper.rendered svg {
   filter: invert(0.9) hue-rotate(180deg);
+  background: #eee; /* Light background for the inverted SVG to look good */
+}
+
+.dark .mermaid-block-container {
+  background: rgba(255, 255, 255, 0.02);
 }
 
 /* Markmap Styles */
