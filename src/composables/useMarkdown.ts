@@ -62,7 +62,83 @@ export function useMarkdown() {
   });
   md.use(markdownItKatex);
 
-  // 3. 优化：保留自定义 UI，但利用 hljs 实例逻辑
+  // 3. 媒体链接识别逻辑
+  const isAudio = (url: string) => /\.(mp3|wav|ogg|m4a|aac|flac|opus)(\?.*)?$/i.test(url);
+  const isVideo = (url: string) => /\.(mp4|webm|ogv|mov|mkv)(\?.*)?$/i.test(url);
+
+  // 自定义链接渲染逻辑
+  const defaultLinkOpen = md.renderer.rules.link_open || ((tokens, idx, options, _env, self) => self.renderToken(tokens, idx, options));
+  const defaultLinkClose = md.renderer.rules.link_close || ((tokens, idx, options, _env, self) => self.renderToken(tokens, idx, options));
+
+  md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
+    const token = tokens[idx];
+    if (!token) return defaultLinkOpen(tokens, idx, options, env, self);
+
+    const href = token.attrGet("href") || "";
+
+    // 1. 强制所有链接在新标签页打开
+    token.attrSet("target", "_blank");
+    token.attrSet("rel", "noopener noreferrer");
+
+    // 2. 检查是否是媒体文件
+    const mediaType = isAudio(href) ? "audio" : isVideo(href) ? "video" : null;
+
+    if (mediaType) {
+      // 检查是否是独立一行（Standalone）
+      // 在 markdown-it 的渲染规则中，对于 inline token 的子 token，tokens 参数就是 children 数组
+      const children = tokens;
+      const meaningfulChildren = children.filter(
+        (c) => !(c.type === "text" && !c.content.trim()) && c.type !== "softbreak"
+      );
+
+      const isStandalone =
+        meaningfulChildren.length === 3 &&
+        meaningfulChildren[0]?.type === "link_open" &&
+        meaningfulChildren[2]?.type === "link_close" &&
+        meaningfulChildren[0] === token;
+
+      if (isStandalone) {
+        // Standalone 模式现在交由 MessageContent.vue 的 Block 解析器处理
+        // 这里仅作降级处理，标记一下，避免重复渲染
+        token.attrSet("data-media-standalone", "true");
+        // 为了防止闪烁，渲染时我们让它保持为普通链接，MessageContent 会将其包装为 Block
+      } else {
+        // 内联模式：添加特殊类名用于点击拦截
+        token.attrSet("class", (token.attrGet("class") || "") + ` media-link-inline media-type-${mediaType}`);
+        token.attrSet("data-href", href);
+        token.attrSet("data-type", mediaType);
+        const icon = mediaType === "audio" ? "🎵" : "📺";
+        return `<span class="inline-flex items-center gap-1">${icon}${defaultLinkOpen(
+          tokens,
+          idx,
+          options,
+          env,
+          self
+        )}`;
+      }
+    }
+
+    return defaultLinkOpen(tokens, idx, options, env, self);
+  };
+
+  md.renderer.rules.link_close = (tokens, idx, options, env, self) => {
+    // 找到对应的 link_open
+    let isMediaInline = false;
+    for (let i = idx - 1; i >= 0; i--) {
+      const t = tokens[i];
+      if (t && t.type === "link_open") {
+        isMediaInline = (t.attrGet("class") || "").includes("media-link-inline");
+        break;
+      }
+    }
+
+    if (isMediaInline) {
+      return `${defaultLinkClose(tokens, idx, options, env, self)}</span>`;
+    }
+    return defaultLinkClose(tokens, idx, options, env, self);
+  };
+
+  // 4. 优化：保留自定义 UI，但利用 hljs 实例逻辑
   md.renderer.rules.fence = (tokens, idx, _options, _env, _slf) => {
     const token = tokens[idx];
     if (!token) return "";
@@ -108,10 +184,6 @@ export function useMarkdown() {
     </div>`;
   };
 
-  // 注册 Markmap 插件（必须在 fence 规则定义之后）
-  // 移除：已改为在 MessageContent.vue 中独立处理，不再作为 markdown 解析的一部分
-  // md.use(markmapPlugin);
-
   function render(content: string) {
     if (!content) return "";
     try {
@@ -138,6 +210,9 @@ export function useMarkdown() {
           "text",
           "style",
           "foreignObject",
+          "audio",
+          "video",
+          "source",
         ],
         ADD_ATTR: [
           "xmlns",
@@ -177,6 +252,18 @@ export function useMarkdown() {
           "width",
           "height",
           "loading",
+          // Media attributes
+          "controls",
+          "preload",
+          "autoplay",
+          "muted",
+          "loop",
+          "type",
+          // General attributes
+          "target",
+          "rel",
+          "data-href",
+          "data-type",
           // Mermaid attributes
           "data-processed",
           "data-content",

@@ -87,6 +87,8 @@ export async function* mockStreamResponse(
     responseText = MOCK_RESPONSES.MERMAID_DEMO;
   } else if (prompt.includes("markmap")) {
     responseText = MOCK_RESPONSES.MARKMAP_DEMO;
+  } else if (prompt.toLowerCase().includes("media") || prompt.includes("音视频") || prompt.includes("视频") || prompt.includes("音频")) {
+    responseText = MOCK_RESPONSES.MEDIA_DEMO;
   } else {
     responseText = Math.random() > 0.5 ? MOCK_RESPONSES.CN : MOCK_RESPONSES.EN;
   }

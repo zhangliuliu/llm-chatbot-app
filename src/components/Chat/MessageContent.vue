@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import TypingIndicator from "./TypingIndicator.vue";
 import type { Message } from "@/lib/db";
 import { getSupportedLanguages, getRenderer } from "@/lib/renderers";
+import { XCircle, Music, Video } from "lucide-vue-next";
 
 const props = defineProps<{
   message: Message;
@@ -16,8 +17,9 @@ const store = useChatStore();
 const { render } = useMarkdown();
 
 interface ContentBlock {
-  type: "markdown" | "custom";
+  type: "markdown" | "custom" | "media";
   language?: string; // For custom blocks
+  media?: { url: string; type: "audio" | "video" }; // For media blocks
   content: string;
   key: string;
   startPos: number; // Position of this block in original content
@@ -30,14 +32,59 @@ const lastParsedLength = ref(0);
 // Block key counter for unique keys
 let blockKeyCounter = 0;
 
+// Media Player state for Interaction A
+const activeMedia = ref<{ url: string; type: "audio" | "video" } | null>(null);
+
+const emit = defineEmits<{
+  (e: 'copyCode', event: MouseEvent): void
+}>();
+
+const handleContentClick = (event: MouseEvent) => {
+  // Handle media link clicks
+  const target = event.target as HTMLElement;
+  const link = target.closest(".media-link-inline") as HTMLElement;
+  if (link) {
+    event.preventDefault();
+    const url = link.getAttribute("data-href");
+    const type = link.getAttribute("data-type") as "audio" | "video";
+    if (url && type) {
+      activeMedia.value = { url, type };
+    }
+    return;
+  }
+  
+  // Emit copyCode event for other clicks (e.g., code block copy buttons)
+  emit('copyCode', event);
+};
+
+// Media detection utilities
+const isAudio = (url: string) => /\.(mp3|wav|ogg|m4a|aac|flac|opus)(\?.*)?$/i.test(url);
+
+const getStandaloneMedia = (content: string) => {
+  const trimmed = content.trim();
+  // Match [text](url) 
+  const mdLinkMatch = trimmed.match(/^\[([^\]]*)\]\((https?:\/\/[^\s)]+\.(?:mp3|wav|ogg|m4a|aac|flac|opus|mp4|webm|ogv|mov|mkv)(?:\?[^\s)]+)?)\)$/i);
+  if (mdLinkMatch && mdLinkMatch[2]) {
+    const url = mdLinkMatch[2];
+    return { url, type: isAudio(url) ? ("audio" as const) : ("video" as const) };
+  }
+  // Match plain URL
+  const plainUrlMatch = trimmed.match(/^(https?:\/\/[^\s]+\.(?:mp3|wav|ogg|m4a|aac|flac|opus|mp4|webm|ogv|mov|mkv)(?:\?[^\s)]+)?)$/i);
+  if (plainUrlMatch && plainUrlMatch[1]) {
+    const url = plainUrlMatch[1];
+    return { url, type: isAudio(url) ? ("audio" as const) : ("video" as const) };
+  }
+  return null;
+};
+
 // Parse content into blocks (full parse)
 const parseContentBlocks = (content: string): ContentBlock[] => {
   if (!content) return [];
 
-  const blocks: ContentBlock[] = [];
+  const rawBlocks: ContentBlock[] = [];
   const supportedLangs = getSupportedLanguages();
   
-  // Construct regex dynamically: /```(mermaid|markmap)\n([\s\S]*?)```/g
+  // 1. First split by code blocks
   const pattern = `\`\`\`(${supportedLangs.join("|")})\\n([\\s\\S]*?)\`\`\``;
   const diagramRegex = new RegExp(pattern, "g");
   
@@ -45,163 +92,113 @@ const parseContentBlocks = (content: string): ContentBlock[] => {
   let match;
 
   while ((match = diagramRegex.exec(content)) !== null) {
-    // Add markdown block before diagram
     if (match.index > lastIndex) {
-      const mdContent = content.substring(lastIndex, match.index);
-      if (mdContent.trim()) {
-        blocks.push({
-          type: "markdown",
-          content: mdContent,
-          key: `${props.message.id}-md-${blockKeyCounter++}`,
-          startPos: lastIndex,
-        });
-      }
+      rawBlocks.push({
+        type: "markdown",
+        content: content.substring(lastIndex, match.index),
+        key: "",
+        startPos: lastIndex,
+      });
     }
 
-    // Add custom diagram block
     const lang = match[1] || "";
     const itemContent = match[2] || "";
-    const renderer = getRenderer(lang);
-
-    if (renderer) {
-      blocks.push({
-        type: "custom",
-        language: lang,
-        content: itemContent,
-        key: `${props.message.id}-${lang}-${blockKeyCounter++}`,
-        startPos: match.index,
-        rendered: undefined, 
-      });
-    } else {
-        // Fallback to markdown if renderer not found (shouldn't happen due to regex)
-        blocks.push({
-          type: "markdown",
-          content: match[0],
-          key: `${props.message.id}-md-${blockKeyCounter++}`,
-          startPos: match.index,
-        });
-    }
+    rawBlocks.push({
+      type: "custom",
+      language: lang,
+      content: itemContent,
+      key: "",
+      startPos: match.index,
+    });
 
     lastIndex = match.index + match[0].length;
   }
 
-  // Add remaining markdown content
   if (lastIndex < content.length) {
-    const mdContent = content.substring(lastIndex);
-    if (mdContent.trim()) {
-      blocks.push({
+    rawBlocks.push({
+      type: "markdown",
+      content: content.substring(lastIndex),
+      key: "",
+      startPos: lastIndex,
+    });
+  }
+
+  // 2. Further split markdown blocks by standalone media links
+  const finalBlocks: ContentBlock[] = [];
+  for (const block of rawBlocks) {
+    if (block.type !== "markdown") {
+      block.key = `${props.message.id}-${block.language}-${blockKeyCounter++}`;
+      finalBlocks.push(block);
+      continue;
+    }
+
+    // Split markdown by lines to find standalone media
+    const lines = block.content.split('\n');
+    let currentMd = "";
+    let currentStart = block.startPos;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i] || "";
+      const media = getStandaloneMedia(line);
+
+      if (media) {
+        // 1. 先推送累积的 Markdown
+        if (currentMd.trim()) {
+           finalBlocks.push({
+             type: "markdown",
+             content: currentMd,
+             key: `${props.message.id}-md-${blockKeyCounter++}`,
+             startPos: currentStart,
+           });
+        }
+        
+        // 更新起始位置到当前媒体行
+        const mediaStart = currentStart + currentMd.length;
+        
+        // 2. 推送媒体块
+        finalBlocks.push({
+          type: "media",
+          media: media,
+          content: line,
+          key: `${props.message.id}-media-${blockKeyCounter++}`,
+          startPos: mediaStart,
+        });
+
+        // 3. 重置缓存并跳过该行
+        currentMd = "";
+        // +1 是为了跳过换行符
+        currentStart = mediaStart + line.length + 1;
+      } else {
+        currentMd += line + (i === lines.length - 1 ? "" : "\n");
+      }
+    }
+
+    if (currentMd.trim()) {
+      finalBlocks.push({
         type: "markdown",
-        content: mdContent,
+        content: currentMd,
         key: `${props.message.id}-md-${blockKeyCounter++}`,
-        startPos: lastIndex,
+        startPos: currentStart,
       });
     }
   }
 
-  return blocks;
+  return finalBlocks;
 };
 
-// Check if content has incomplete diagram block
-const hasIncompleteDiagram = (content: string): boolean => {
-  let inCodeBlock = false;
-  let inDiagramBlock = false;
-  const lines = content.split('\n');
-  const supportedLangs = getSupportedLanguages();
-  const startRegex = new RegExp(`^\`\`\`(${supportedLangs.join("|")})$`);
-  
-  for (const line of lines) {
-    const trimmedLine = line.trim();
-    
-    if (!inCodeBlock) {
-      if (startRegex.test(trimmedLine)) {
-        inCodeBlock = true;
-        inDiagramBlock = true;
-      } else if (/^```/.test(trimmedLine)) {
-        inCodeBlock = true;
-        inDiagramBlock = false;
-      }
-    } else {
-      if (/^```$/.test(trimmedLine)) {
-        inCodeBlock = false;
-        inDiagramBlock = false;
-      }
-    }
-  }
-  
-  return inDiagramBlock;
-};
+// Parsing ends here
 
 // Incremental parse
 const parseContentBlocksIncremental = (
   content: string,
-  existingBlocks: ContentBlock[],
-  lastLength: number
+  _existingBlocks: ContentBlock[],
+  _lastLength: number
 ): { blocks: ContentBlock[]; newLength: number } => {
-  if (content.length < lastLength) {
-    blockKeyCounter = 0;
-    lastParsedLength.value = content.length;
-    return {
-      blocks: parseContentBlocks(content),
-      newLength: content.length,
-    };
-  }
-
-  if (content.length === lastLength) {
-    return { blocks: existingBlocks, newLength: lastLength };
-  }
-
-  const newContent = content.substring(lastLength);
-  const lastBlock = existingBlocks[existingBlocks.length - 1];
-
-  if (lastBlock && lastBlock.type === "markdown") {
-    const combinedContent = lastBlock.content + newContent;
-    
-    const supportedLangs = getSupportedLanguages();
-    const pattern = `\`\`\`(${supportedLangs.join("|")})\\n([\\s\\S]*?)\`\`\``;
-    const diagramRegex = new RegExp(pattern, "g");
-
-    const hasDiagram = diagramRegex.test(combinedContent);
-    diagramRegex.lastIndex = 0;
-
-    if (!hasDiagram) {
-      const newBlocks = [...existingBlocks];
-      newBlocks[newBlocks.length - 1] = {
-        ...lastBlock,
-        content: combinedContent,
-      };
-      return { blocks: newBlocks, newLength: content.length };
-    }
-
-    if (hasIncompleteDiagram(combinedContent)) {
-      const newBlocks = [...existingBlocks];
-      newBlocks[newBlocks.length - 1] = {
-        ...lastBlock,
-        content: combinedContent,
-      };
-      return { blocks: newBlocks, newLength: content.length };
-    }
-
-    const reparseFrom = content.substring(lastBlock.startPos);
-    const newParsedBlocks = parseContentBlocks(reparseFrom);
-
-    const adjustedBlocks = newParsedBlocks.map((b) => ({
-      ...b,
-      key: `${props.message.id}-block-${blockKeyCounter++}`,
-      startPos: b.startPos + lastBlock.startPos,
-    }));
-
-    const newBlocks = [...existingBlocks.slice(0, -1), ...adjustedBlocks];
-    return { blocks: newBlocks, newLength: content.length };
-  }
-
-  const newBlocks = [...existingBlocks];
-  newBlocks.push({
-    type: "markdown",
-    content: newContent,
-    key: `${props.message.id}-block-${blockKeyCounter++}`,
-    startPos: lastLength,
-  });
-  return { blocks: newBlocks, newLength: content.length };
+  // Always do a full parse during streaming for simplicity and correctness with media splitting
+  // Because standalone media detection depends on line boundaries which change during streaming
+  blockKeyCounter = 0;
+  const blocks = parseContentBlocks(content);
+  return { blocks, newLength: content.length };
 };
 
 // Render custom blocks (HTML)
@@ -348,7 +345,7 @@ watch(
             store.messages[store.messages.length - 1]?.id === props.message.id
           ),
         }"
-        @click="$emit('copyCode', $event)"
+        @click="handleContentClick"
       >
         <!-- Render blocks separately -->
         <template v-for="block in contentBlocks" :key="block.key">
@@ -373,7 +370,79 @@ watch(
                 Rendering {{ block.language }}...
              </div>
           </div>
+          <!-- Minimal Media Block -->
+          <div
+            v-else-if="block.type === 'media' && block.media"
+            class="media-standalone-wrapper my-4 flex justify-start w-full"
+          >
+            <!-- Minimal Audio -->
+            <div 
+              v-if="block.media.type === 'audio'" 
+              class="w-full max-w-md"
+            >
+              <audio controls preload="metadata" class="w-full h-10 block">
+                <source :src="block.media.url" />
+              </audio>
+            </div>
+
+            <!-- Minimal Video -->
+            <div 
+              v-else 
+              class="w-full max-w-2xl bg-black/5 rounded-xl overflow-hidden border border-border/50"
+            >
+              <video controls preload="metadata" class="w-full block">
+                <source :src="block.media.url" />
+              </video>
+            </div>
+          </div>
         </template>
+
+        <!-- Media Player Drawer (Interaction A) -->
+        <Transition
+          enter-active-class="transition duration-300 ease-out"
+          enter-from-class="transform -translate-y-2 opacity-0"
+          enter-to-class="transform translate-y-0 opacity-100"
+          leave-active-class="transition duration-200 ease-in"
+          leave-from-class="transform translate-y-0 opacity-100"
+          leave-to-class="transform -translate-y-2 opacity-0"
+        >
+          <div
+            v-if="activeMedia"
+            class="media-player-drawer mt-4 p-4 rounded-2xl border border-border/40 relative group/player"
+          >
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2 text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
+                <Music v-if="activeMedia.type === 'audio'" class="w-3.5 h-3.5" />
+                <Video v-else class="w-3.5 h-3.5" />
+                <span>Now Playing</span>
+              </div>
+              <button
+                @click="activeMedia = null"
+                class="p-1 hover:bg-muted/50 rounded-full transition-colors group"
+                title="Close Player"
+              >
+                <XCircle class="w-4 h-4 text-muted-foreground/40 group-hover:text-foreground" />
+              </button>
+            </div>
+
+            <div v-if="activeMedia.type === 'audio'" class="audio-player-container">
+              <audio
+                :src="activeMedia.url"
+                controls
+                autoplay
+                class="w-full h-10 custom-audio-player"
+              ></audio>
+            </div>
+            <div v-else class="video-player-container">
+              <video
+                :src="activeMedia.url"
+                controls
+                autoplay
+                class="w-full rounded-xl border border-white/10 shadow-lg"
+              ></video>
+            </div>
+          </div>
+        </Transition>
       </div>
     </div>
   </Card>
@@ -500,6 +569,22 @@ watch(
   color: #d4d4d4;
   padding: 1.25em;
 }
+
+.markdown-body a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 4px;
+  transition: all 0.2s ease;
+}
+
+.markdown-body a:hover {
+  opacity: 0.8;
+  text-decoration-style: solid;
+}
+
+/* Minimal Player Styling */
+/* Removed redundant media-player-drawer rule */
 
 .markdown-body code {
   background-color: var(--muted);
@@ -713,5 +798,48 @@ watch(
 /* Dark mode - use light background for markmap since it has colored elements */
 .dark .markmap-wrapper.rendered {
   background: rgba(255, 255, 255, 0.95);
+}
+
+/* Media Player Styles */
+.media-player-drawer {
+  background: var(--muted);
+  opacity: 0.8;
+  backdrop-filter: blur(8px);
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.custom-audio-player::-webkit-media-controls-enclosure {
+  background-color: var(--muted);
+  border-radius: 12px;
+}
+
+.media-link-inline {
+  transition: all 0.2s ease;
+}
+
+.media-link-inline:hover {
+  background-color: var(--primary/10);
+  border-radius: 4px;
+}
+
+.media-standalone {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.media-standalone audio {
+  max-width: 500px;
 }
 </style>
