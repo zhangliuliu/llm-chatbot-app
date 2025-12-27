@@ -390,8 +390,13 @@ watch(
               v-else 
               class="w-full max-w-2xl bg-black/5 rounded-xl overflow-hidden border border-border/50"
             >
-              <video controls preload="metadata" class="w-full block">
-                <source :src="block.media.url" />
+              <video 
+                controls 
+                preload="metadata" 
+                playsinline
+                :src="block.media.url"
+                class="w-full block"
+              >
               </video>
             </div>
           </div>
@@ -438,6 +443,8 @@ watch(
                 :src="activeMedia.url"
                 controls
                 autoplay
+                playsinline
+                preload="metadata"
                 class="w-full rounded-xl border border-white/10 shadow-lg"
               ></video>
             </div>
