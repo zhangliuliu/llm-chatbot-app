@@ -41,6 +41,8 @@ hljs.registerLanguage("cpp", cpp);
 hljs.registerLanguage("sql", sql);
 hljs.registerLanguage("rust", rust);
 
+// import { markmapPlugin } from "@/plugins/markdown-it-markmap";
+
 export function useMarkdown() {
   const md: MarkdownIt = new MarkdownIt({
     html: true, // Enable HTML tags in source
@@ -105,6 +107,10 @@ export function useMarkdown() {
       <pre class="hljs my-0! p-3! bg-transparent! rounded-none! overflow-x-auto"><code class="language-${language} !font-mono text-sm !bg-transparent !p-0 !border-none">${highlighted}</code></pre>
     </div>`;
   };
+
+  // 注册 Markmap 插件（必须在 fence 规则定义之后）
+  // 移除：已改为在 MessageContent.vue 中独立处理，不再作为 markdown 解析的一部分
+  // md.use(markmapPlugin);
 
   function render(content: string) {
     if (!content) return "";
@@ -177,6 +183,7 @@ export function useMarkdown() {
           // Markmap attributes
           "data-depth",
           "data-path",
+          "data-json",
         ],
         FORBID_TAGS: ["script"], // 移除 style 的禁用，因为 Mermaid SVG 经常包含内联 style
         FORBID_ATTR: ["onerror", "onclick"],
