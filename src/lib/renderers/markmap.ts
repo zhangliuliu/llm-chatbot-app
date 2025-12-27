@@ -1,6 +1,8 @@
 import type { DiagramRenderer } from "./types";
 import { RendererCache } from "./types";
 import { Transformer } from "markmap-lib";
+import { renderActionBar, showLightbox } from "./base-actions";
+import { downloadPng, triggerDownload } from "../utils/diagram-export";
 
 export class MarkmapRenderer implements DiagramRenderer {
     languages = ["markmap", "mindmap"];
@@ -30,10 +32,17 @@ export class MarkmapRenderer implements DiagramRenderer {
             const jsonData = JSON.stringify(root);
             const escapedJson = jsonData.replace(/'/g, "&#39;");
 
-            // Step 2: Create SVG placeholder
+            // Step 2: Create SVG placeholder with theme-matching container
             const svgPlaceholder = `
-        <div class="markmap-wrapper rendered markmap-container" style="min-height: 100px; padding: 10px; background: rgba(255, 255, 255, 0.95); border-radius: 8px; overflow-x: auto;">
-          <svg class="markmap-svg" data-json='${escapedJson}' width="800" height="300" style="width: 100%; min-height: 300px; display: block; margin: 0 auto;"></svg>
+        <div class="markmap-block-container relative markmap-block-group bg-white/50 dark:bg-zinc-900/50 transition-all duration-300 z-[1] min-h-[80px]">
+          <div class="markmap-wrapper-outer overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
+             <div class="markmap-wrapper rendered transition-transform duration-200 ease-out" style="background: white;">
+                <svg class="markmap-svg" data-json='${escapedJson}' style="width: 100%; min-height: 300px; display: block;"></svg>
+             </div>
+          </div>
+          ${renderActionBar({
+                downloadOptions: { svg: false, png: true, code: true }
+            })}
         </div>`;
 
             this.cache.set(content, svgPlaceholder);
@@ -47,30 +56,15 @@ export class MarkmapRenderer implements DiagramRenderer {
         }
     }
 
-    async hydrate(element: HTMLElement, _content: string, isStreaming: boolean): Promise<void> {
-        // 查找该容器内的 SVG
+    async hydrate(element: HTMLElement, content: string, isStreaming: boolean): Promise<void> {
         const svg = element.querySelector("svg.markmap-svg") as SVGSVGElement;
         if (!svg || svg.hasAttribute("data-initialized")) return;
 
-        // 辅助函数：等待 DOM 尺寸就绪
-        const waitForDimensions = async (el: Element, retries = 5, delay = 50): Promise<boolean> => {
-            if (el.clientWidth > 0 && el.clientHeight > 0) return true;
-            if (retries <= 0) return false;
-            await new Promise(resolve => setTimeout(resolve, delay));
-            return waitForDimensions(el, retries - 1, delay);
-        };
-
-        // 在非流式模式下（即最终渲染），我们愿意多等一会儿以确保渲染成功
-        // 流式模式下如果尺寸为0就跳过，等待下一次 update
-        if (!isStreaming) {
-            const ready = await waitForDimensions(svg);
-            if (!ready) {
-                console.warn("Markmap SVG has no dimensions after retries, skipping hydration.");
-                return;
-            }
-        } else {
-            if (svg.clientWidth === 0 || svg.clientHeight === 0) return;
-        }
+        const zoomInBtn = element.querySelector(".zoom-in-btn");
+        const zoomOutBtn = element.querySelector(".zoom-out-btn");
+        const fullBtn = element.querySelector(".fullscreen-btn");
+        const pngBtn = element.querySelector(".download-png-btn");
+        const codeBtn = element.querySelector(".download-code-btn");
 
         try {
             const { Markmap } = await import("markmap-view");
@@ -79,24 +73,57 @@ export class MarkmapRenderer implements DiagramRenderer {
 
             const root = JSON.parse(jsonData);
 
-            // Clear content (if any fallback exists)
+            // Clear content
             svg.innerHTML = "";
 
             const mm = Markmap.create(svg, {
-                autoFit: false,
-                duration: 0,
+                autoFit: true,
+                duration: 500,
                 embedGlobalCSS: true,
-                zoom: false,
-                pan: false,
             }, root);
 
-            // Fit logic based on streaming state
+            // Bind Zoom Buttons
+            zoomInBtn?.addEventListener("click", () => {
+                mm.rescale(1.2);
+            });
+            zoomOutBtn?.addEventListener("click", () => {
+                mm.rescale(0.8);
+            });
+
+            // Fullscreen Logic (Preserve State)
+            fullBtn?.addEventListener("click", () => {
+                showLightbox((container) => {
+                    container.className = "w-full h-full p-0 overflow-hidden bg-white rounded-xl shadow-2xl animate-in zoom-in-95 duration-200";
+                    const fsSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                    fsSvg.setAttribute("class", "w-full h-full");
+                    container.appendChild(fsSvg);
+
+                    const fsMm = Markmap.create(fsSvg, {
+                        ...mm.options,
+                        autoFit: true,
+                    }, mm.state.data);
+
+                    // Sync initial state roughly or just fit
+                    setTimeout(() => fsMm.fit(), 50);
+
+                    return () => fsMm.destroy();
+                });
+            });
+
+            // Download Logic
+            pngBtn?.addEventListener("click", () => {
+                downloadPng(svg, "mindmap.png");
+            });
+
+            codeBtn?.addEventListener("click", () => {
+                const blob = new Blob([content], { type: "text/plain" });
+                const url = URL.createObjectURL(blob);
+                triggerDownload(url, "mindmap.md");
+                URL.revokeObjectURL(url);
+            });
+
             if (!isStreaming) {
-                setTimeout(() => {
-                    if (svg.clientWidth > 0 && svg.clientHeight > 0) {
-                        mm.fit();
-                    }
-                }, 100);
+                setTimeout(() => mm.fit(), 200);
             }
 
             svg.setAttribute("data-initialized", "true");

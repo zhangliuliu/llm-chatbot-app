@@ -633,8 +633,9 @@ watch(
   }
 }
 
-/* Mermaid Actions Bar Styling */
-.mermaid-block-group:hover .mermaid-actions-bar {
+/* Diagram Actions Bar Styling (Shared) */
+.mermaid-block-group:hover .mermaid-actions-bar,
+.markmap-block-group:hover .mermaid-actions-bar {
   opacity: 1;
   transform: translateY(0);
 }
@@ -694,7 +695,7 @@ watch(
   margin: 0 auto;
   opacity: 1;
   animation: markmapFadeIn 0.4s ease-in-out;
-  pointer-events: none; /* Disable all interactions */
+  pointer-events: auto; /* Enable interactions */
 }
 
 @keyframes markmapFadeIn {
