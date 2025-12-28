@@ -15,8 +15,9 @@ mermaid.initialize({
 export class MermaidRenderer implements DiagramRenderer {
   languages = ["mermaid"];
   private cache = new RendererCache();
+  private lastGoodHtml = new Map<string, string>(); // Stable identity cache for streaming
 
-  async render(content: string, _key: string, isStreaming: boolean): Promise<string> {
+  async render(content: string, key: string, isStreaming: boolean): Promise<string> {
     const cached = this.cache.get(content);
     if (cached) return cached;
 
@@ -37,8 +38,10 @@ export class MermaidRenderer implements DiagramRenderer {
       // 预检查语法
       await mermaid.parse(content);
 
+      // 生成稳定 ID (基于传入的 key)
+      const id = `mermaid-${key.replace(/[^a-zA-Z0-9]/g, '-')}`;
+
       // 生成 SVG
-      const id = `mermaid-${Math.random().toString(36).substring(2, 9)}`;
       const { svg } = await mermaid.render(id, content);
 
       const renderedHtml = `
@@ -50,13 +53,16 @@ export class MermaidRenderer implements DiagramRenderer {
         downloadOptions: { svg: true, png: true, code: true }
       })}
         </div>`;
+
       this.cache.set(content, renderedHtml);
+      this.lastGoodHtml.set(key, renderedHtml); // 更新最后一次成功的渲染
       return renderedHtml;
     } catch (error) {
-      if (!isStreaming) {
-        return `<div class="text-red-500 text-sm p-4">Mermaid syntax error</div>`;
+      if (isStreaming) {
+        // 如果正在流式输出且语法错误，优先返回最后一次成功的渲染，否则显示加载状态
+        return this.lastGoodHtml.get(key) || loadingHtml;
       }
-      return loadingHtml;
+      return `<div class="text-red-500 text-sm p-4">Mermaid syntax error</div>`;
     }
   }
 

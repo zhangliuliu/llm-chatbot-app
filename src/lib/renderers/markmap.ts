@@ -7,9 +7,10 @@ import { downloadPng, triggerDownload } from "../utils/diagram-export";
 export class MarkmapRenderer implements DiagramRenderer {
     languages = ["markmap", "mindmap"];
     private cache = new RendererCache();
+    private lastGoodHtml = new Map<string, string>();
     private transformer = new Transformer();
 
-    async render(content: string, _key: string, isStreaming: boolean): Promise<string> {
+    async render(content: string, key: string, isStreaming: boolean): Promise<string> {
         const cached = this.cache.get(content);
         if (cached) return cached;
 
@@ -32,7 +33,7 @@ export class MarkmapRenderer implements DiagramRenderer {
             const jsonData = JSON.stringify(root);
             const escapedJson = jsonData.replace(/'/g, "&#39;");
 
-            // Step 2: Create SVG placeholder with theme-matching container
+            // Step 2: Create SVG placeholder
             const svgPlaceholder = `
         <div class="markmap-block-container relative markmap-block-group bg-white/50 dark:bg-zinc-900/50 transition-all duration-300 z-[1] min-h-[80px]">
           <div class="markmap-wrapper-outer overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
@@ -46,13 +47,14 @@ export class MarkmapRenderer implements DiagramRenderer {
         </div>`;
 
             this.cache.set(content, svgPlaceholder);
+            this.lastGoodHtml.set(key, svgPlaceholder);
             return svgPlaceholder;
         } catch (error) {
             console.error("Markmap transform error:", error);
-            if (!isStreaming) {
-                return `<div class="text-red-500 text-sm p-4">Markmap transform error: ${error}</div>`;
+            if (isStreaming) {
+                return this.lastGoodHtml.get(key) || loadingHtml;
             }
-            return loadingHtml;
+            return `<div class="text-red-500 text-sm p-4">Markmap transform error: ${error}</div>`;
         }
     }
 

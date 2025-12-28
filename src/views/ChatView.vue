@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { watch, ref, nextTick, onMounted, onUnmounted } from "vue";
+import { watch, ref, nextTick, onMounted, onUnmounted, computed } from "vue";
 import { useRoute } from "vue-router";
 import { useChatStore } from "@/stores/chat";
 import { storeToRefs } from "pinia";
@@ -10,6 +10,28 @@ import { ArrowDown } from "lucide-vue-next";
 const route = useRoute();
 const store = useChatStore();
 const { messages, isLoading } = storeToRefs(store);
+
+// Grouping logic: assistant sub-turns should be in one bubble
+const groupedMessages = computed(() => {
+  const groups: { role: string; messages: any[] }[] = [];
+  let currentGroup: { role: string; messages: any[] } | null = null;
+
+  messages.value.forEach((msg) => {
+    if (msg.role === "tool") return; // Skip tool messages in UI
+
+    if (currentGroup && currentGroup.role === "assistant" && msg.role === "assistant") {
+      currentGroup.messages.push(msg);
+    } else {
+      currentGroup = {
+        role: msg.role,
+        messages: [msg],
+      };
+      groups.push(currentGroup);
+    }
+  });
+
+  return groups;
+});
 const messagesContainerRef = ref<HTMLDivElement | null>(null);
 const userScrolled = ref(false);
 const showScrollButton = ref(false);
@@ -295,7 +317,7 @@ function handleScrollToBottom() {
     <!-- Messages Area -->
     <div
       ref="messagesContainerRef"
-      class="flex-1 w-full overflow-y-auto p-4 md:p-10 transition-opacity duration-150 ease-out"
+      class="flex-1 w-full overflow-y-auto px-4 py-6 md:py-10 transition-opacity duration-150 ease-out"
       style="overflow-anchor: none;"
       :class="isSessionVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'"
     >
@@ -310,8 +332,8 @@ function handleScrollToBottom() {
         </div>
 
         <!-- Message List -->
-        <div v-for="msg in store.messages" :key="msg.id">
-          <MessageItem :message="msg" />
+        <div v-for="(group, index) in groupedMessages" :key="index + '-' + group.messages[0].id">
+          <MessageItem :messages="group.messages" />
         </div>
       </div>
     </div>

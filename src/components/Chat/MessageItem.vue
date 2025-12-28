@@ -1,56 +1,94 @@
 <script setup lang="ts">
 import { User } from "lucide-vue-next";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useMessageActions } from "@/composables/useMessageActions";
+import { useClipboard } from "@vueuse/core";
+import { useChatStore } from "@/stores/chat";
 import MessageContent from "./MessageContent.vue";
 import MessageActions from "./MessageActions.vue";
 import MessageDeleteDialog from "./MessageDeleteDialog.vue";
 import type { Message } from "@/lib/db";
+import { computed, ref } from "vue";
 
 const props = defineProps<{
-  message: Message;
+  messages: Message[];
 }>();
 
 const emit = defineEmits<{
   (e: "regenerate", message: Message): void;
 }>();
 
-// Use message actions composable
-const {
-  copied,
-  isDeleteDialogOpen,
-  handleCopyMessage,
-  handleCopyCode,
-  handleDeleteMessage,
-  openDeleteDialog,
-  closeDeleteDialog,
-} = useMessageActions(props.message);
+const store = useChatStore();
+const { copy, copied } = useClipboard();
+const isDeleteDialogOpen = ref(false);
+
+const primaryMessage = computed(() => props.messages[0]);
+const lastMessage = computed(() => props.messages[props.messages.length - 1]);
+
+const handleCopyMessage = () => {
+    // Copy combined content of all messages in group
+    const combinedContent = props.messages
+        .map(m => m.content)
+        .filter(c => !!c && c.trim() !== "")
+        .join('\n\n');
+    copy(combinedContent || "");
+};
 
 const handleRegenerate = () => {
-  emit("regenerate", props.message);
+  // Regenerate from the last one
+  emit("regenerate", lastMessage.value);
+};
+
+const openDeleteDialog = () => isDeleteDialogOpen.value = true;
+const closeDeleteDialog = () => isDeleteDialogOpen.value = false;
+
+const handleDeleteGroup = async () => {
+    // Delete all messages in this group
+    for (const msg of props.messages) {
+        if (msg.id) {
+            await store.deleteMessage(msg.id);
+        }
+    }
+    isDeleteDialogOpen.value = false;
+};
+
+// handleCopyCode is standard for code blocks
+const handleCopyCode = async (e: MouseEvent) => {
+    const target = (e.target as HTMLElement).closest(".copy-btn") as HTMLButtonElement;
+    if (!target) return;
+    const codeBlock = target.closest(".code-block");
+    if (!codeBlock) return;
+    const codeElement = codeBlock.querySelector("code");
+    if (!codeElement) return;
+    try {
+        await navigator.clipboard.writeText(codeElement.innerText);
+        const label = target.querySelector("span:last-child");
+        if (label) {
+            const originalText = label.textContent;
+            label.textContent = "Copied!";
+            setTimeout(() => label.textContent = originalText, 2000);
+        }
+    } catch (err) { console.error(err); }
 };
 </script>
 
 <template>
   <div
     class="flex gap-4 group"
-    :class="message.role === 'user' ? 'justify-end' : 'justify-start'"
+    :class="primaryMessage.role === 'user' ? 'justify-end' : 'justify-start'"
   >
     <!-- Message Bubble -->
     <div
       class="flex flex-col gap-1"
       :class="
-        message.role === 'user'
+        primaryMessage.role === 'user'
           ? 'items-end max-w-[85%]'
           : 'items-start flex-1 min-w-0 max-w-full'
       "
     >
-      <!-- Message Content -->
-      <MessageContent :message="message" @copy-code="handleCopyCode" />
+      <MessageContent :messages="props.messages" @copy-code="handleCopyCode" />
 
-      <!-- Message Actions -->
       <MessageActions
-        :message="message"
+        :message="lastMessage"
         :copied="copied"
         @copy="handleCopyMessage"
         @regenerate="handleRegenerate"
@@ -58,9 +96,9 @@ const handleRegenerate = () => {
       />
     </div>
 
-    <!-- Avatar (User) -->
+    <!-- Avatar -->
     <Avatar
-      v-if="message.role === 'user'"
+      v-if="primaryMessage.role === 'user'"
       class="h-9 w-9 mt-0.5 border-2 border-background shadow-sm shrink-0"
     >
       <AvatarImage
@@ -75,10 +113,9 @@ const handleRegenerate = () => {
     </Avatar>
   </div>
 
-  <!-- Delete Confirmation Dialog -->
   <MessageDeleteDialog
     :is-open="isDeleteDialogOpen"
     @update:is-open="closeDeleteDialog"
-    @confirm="handleDeleteMessage"
+    @confirm="handleDeleteGroup"
   />
 </template>

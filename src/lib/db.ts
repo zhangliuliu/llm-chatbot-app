@@ -6,11 +6,23 @@ export interface Session {
   updatedAt: number
 }
 
+export interface ToolCall {
+  id: string
+  name: string
+  arguments: string
+  result?: string
+  status?: 'pending' | 'running' | 'completed' | 'error'
+  isError?: boolean
+}
+
 export interface Message {
   id: string
   sessionId: string
-  role: 'user' | 'assistant'
+  role: 'user' | 'assistant' | 'tool'
   content: string
+  reasoning_content?: string
+  tool_calls?: ToolCall[]
+  tool_call_id?: string // For role: 'tool'
   createdAt: number
   isError?: boolean
 }
@@ -43,7 +55,7 @@ export const chatDB = {
     const sessions = await (await dbPromise).getAllFromIndex('sessions', 'by-date')
     return sessions.reverse() // Newest first
   },
-  
+
   async getMessages(sessionId: string) {
     const messages = await (await dbPromise).getAllFromIndex('messages', 'by-session', sessionId)
     return messages.sort((a, b) => a.createdAt - b.createdAt)
@@ -54,7 +66,7 @@ export const chatDB = {
   },
 
   async updateSession(session: Session) {
-      return (await dbPromise).put('sessions', session)
+    return (await dbPromise).put('sessions', session)
   },
 
   async addMessage(message: Message) {
@@ -62,20 +74,20 @@ export const chatDB = {
   },
 
   async deleteSession(sessionId: string) {
-      const db = await dbPromise
-      const tx = db.transaction(['sessions', 'messages'], 'readwrite')
-      await tx.objectStore('sessions').delete(sessionId)
-      
-      const messageStore = tx.objectStore('messages')
-      const index = messageStore.index('by-session')
-      let cursor = await index.openCursor(IDBKeyRange.only(sessionId))
-      
-      while (cursor) {
-          await cursor.delete()
-          cursor = await cursor.continue()
-      }
-      
-      await tx.done
+    const db = await dbPromise
+    const tx = db.transaction(['sessions', 'messages'], 'readwrite')
+    await tx.objectStore('sessions').delete(sessionId)
+
+    const messageStore = tx.objectStore('messages')
+    const index = messageStore.index('by-session')
+    let cursor = await index.openCursor(IDBKeyRange.only(sessionId))
+
+    while (cursor) {
+      await cursor.delete()
+      cursor = await cursor.continue()
+    }
+
+    await tx.done
   },
 
   async deleteMessage(messageId: string) {
